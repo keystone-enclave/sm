@@ -123,6 +123,7 @@ void sm_init(void)
   sbi_printf("[SM] Initializing ... \n");
 
   sbi_ecall_register_extension(&ecall_keystone_enclave);
+  register_pmp_ipi();
 
   if(!sm_init_done) {
     /* only the cold-booting hart will execute these */
