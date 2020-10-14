@@ -15,6 +15,9 @@ extern struct sbi_ecall_extension ecall_keystone_enclave;
 //                     struct sbi_trap_info *out_trap);
 //void sm_ipi_process();
 
+void register_pmp_ipi();
+int sm_sbi_send_ipi(uintptr_t recipient_mask);
+
 /* Outbound interfaces */
 //int sm_sbi_send_ipi(uintptr_t recipient_mask);
 #endif /*_SM_SBI_OPENSBI_H_*/

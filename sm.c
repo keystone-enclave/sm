@@ -123,6 +123,7 @@ void sm_init(void)
   sbi_printf("[SM] Initializing ... \n");
 
   sbi_ecall_register_extension(&ecall_keystone_enclave);
+  register_pmp_ipi();
 
   if(!sm_init_done) {
     sm_region_id = smm_init();

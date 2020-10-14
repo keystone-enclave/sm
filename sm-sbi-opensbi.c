@@ -72,25 +72,45 @@ static int sbi_ecall_keystone_enclave_handler(unsigned long extid, unsigned long
   return retval;
 
 }
-/*
-void sm_ipi_process(){
-  sbi_printf("ipi got %lx\r\n",csr_read(mhartid));
-  handle_pmp_ipi();
+
+// void sm_ipi_process(){
+//   sbi_printf("ipi got %lx\r\n",csr_read(mhartid));
+//   handle_pmp_ipi();
+// }
+
+static void sbi_ipi_process_pmp(struct sbi_scratch *scratch)
+{
+	handle_pmp_ipi();
+}
+
+static struct sbi_ipi_event_ops ipi_pmp = {
+	.name = "IPI_PMP",
+	.process = sbi_ipi_process_pmp,
+};
+
+static u32 PMP_IPI_EVENT;
+
+void register_pmp_ipi()
+{
+  PMP_IPI_EVENT = sbi_ipi_event_create(&ipi_pmp);
 }
 
 int sm_sbi_send_ipi(uintptr_t recipient_mask){
-  struct sbi_scratch *scratch =  sbi_scratch_thishart_ptr();
-  struct sbi_trap_info uptrap;
-  uptrap.epc = 0;
-  uptrap.cause = 0;
-  uptrap.tval = 0;
-  struct sbi_tlb_info tlb_flush_info;
-  tlb_flush_info.start = 0;
-  tlb_flush_info.size = 0;
-  sbi_printf("senidng ipi %lx\r\n", recipient_mask);
-  return sbi_ipi_send_many(scratch, &uptrap, &recipient_mask,
-                              SBI_SM_EVENT, &tlb_flush_info);
-}*/
+  // struct sbi_scratch *scratch =  sbi_scratch_thishart_ptr();
+  // struct sbi_trap_info uptrap;
+  // uptrap.epc = 0;
+  // uptrap.cause = 0;
+  // uptrap.tval = 0;
+  // struct sbi_tlb_info tlb_flush_info;
+  // tlb_flush_info.start = 0;
+  // tlb_flush_info.size = 0;
+  // sbi_printf("senidng ipi %lx\r\n", recipient_mask);
+  // return sbi_ipi_send_many(scratch, &uptrap, &recipient_mask,
+  //                             SBI_SM_EVENT, &tlb_flush_info);
+  return sbi_ipi_send_many(recipient_mask, 0, PMP_IPI_EVENT, NULL);
+}
+
+
 
 struct sbi_ecall_extension ecall_keystone_enclave = {
   .extid_start = SBI_EXT_EXPERIMENTAL_KEYSTONE_ENCLAVE,

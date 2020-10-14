@@ -8,7 +8,9 @@
 #include "safe_math_util.h"
 #include "sm_sbi_opensbi.h"
 #include "page.h"
+#include "sm_sbi_opensbi.h"
 #include <sbi/sbi_hart.h>
+#include <sbi/sbi_hsm.h>
 #include <sbi/riscv_asm.h>
 #include <sbi/riscv_locks.h>
 #include <sbi/riscv_atomic.h>
@@ -201,24 +203,27 @@ int pmp_detect_region_overlap_atomic(uintptr_t addr, uintptr_t size)
   return region_overlap;
 }
 
-/* static void send_pmp_ipi(uintptr_t recipient, uint8_t perm) */
-/* { */
+static void send_pmp_ipi(uintptr_t recipient, uint8_t perm)
+{
+  // if (((disabled_hart_mask >> recipient) & 1)) return;
+  /* never send IPI to my self; it will result in a deadlock */
+  // if (recipient == csr_read(mhartid)) return; // Handled in send and sync
+  // ipi_mailbox[recipient].pending = 1;
+  atomic_write(&(ipi_mailbox[recipient].pending), 1);
+  ipi_mailbox[recipient].perm = perm & PMP_ALL_PERM;
+}
 
-/*   uintptr_t mask = sbi_hart_available_mask(); */
-/*   uintptr_t disabled_hart_mask = ~mask; */
-/*   if (((disabled_hart_mask >> recipient) & 1)) return; */
-/*   // never send IPI to my self; it will result in a deadlock */
-/*   if (recipient == csr_read(mhartid)) return; */
-/*   atomic_or(&OTHER_HLS(recipient)->mipi_pending, IPI_PMP); */
-/*   mb(); */
-/*   atomic_write(&(ipi_mailbox[recipient].pending), 1); */
-/*   ipi_mailbox[recipient].perm = perm & PMP_ALL_PERM; */
-/*   *OTHER_HLS(recipient)->ipi = 1; */
-/* } */
-/*
+/**
+ * This function assumes you have already grabbed the pmp ipi lock.
+*/
 static void send_and_sync_pmp_ipi(int region_idx, enum ipi_type type, uint8_t perm)
 {
-  uintptr_t mask = sbi_hsm_hart_started_mask();
+  sbi_printf("Syncing IPI\n")
+  uintptr_t mask;
+  if (sbi_hsm_hart_started_mask(0, &mask)) {
+    sbi_printf("[SM:PMP] failed to get active harts");
+    sbi_hart_hang();
+  }
   ipi_region_idx = region_idx;
   ipi_type = type;
 
@@ -227,12 +232,11 @@ static void send_and_sync_pmp_ipi(int region_idx, enum ipi_type type, uint8_t pe
 
   for(uintptr_t i=0, m=mask; m; i++, m>>=1) {
     if(m & 1) {
-      atomic_write(&(ipi_mailbox[i].pending), 1);
-      ipi_mailbox[i].perm = perm & PMP_ALL_PERM;
+      send_pmp_ipi(i, perm);
     }
   }
   sm_sbi_send_ipi(mask);
-  // wait until every other hart sets PMP
+  /* wait until every other hart sets PMP */
   for(uintptr_t i=0, m=mask; m; i++, m>>=1) {
     if(m & 1) {
       while( atomic_read(&ipi_mailbox[i].pending) ) {
@@ -241,7 +245,7 @@ static void send_and_sync_pmp_ipi(int region_idx, enum ipi_type type, uint8_t pe
     }
   }
 }
-*/
+
 /*
  * Checks if there is an update in the core's ipi mailbox.
  * If there is (the pending bit is not false), then we update the state of PMP entries.
@@ -256,7 +260,8 @@ void pmp_ipi_update() {
       pmp_unset(ipi_region_idx);
     }
 
-    ipi_mailbox[csr_read(mhartid)].pending.counter = 0;
+    // ipi_mailbox[csr_read(mhartid)].pending.counter = 0;
+    atomic_write(&(ipi_mailbox[csr_read(mhartid)].pending), 0);
   }
 }
 /*
@@ -291,7 +296,7 @@ int pmp_unset_global(int region_idx)
    * by ensuring only one hart can enter this region at a time */
 #ifdef __riscv_atomic
   pmp_ipi_acquire_lock();
-  //send_and_sync_pmp_ipi(region_idx, IPI_PMP_UNSET, PMP_NO_PERM);
+  send_and_sync_pmp_ipi(region_idx, IPI_PMP_UNSET, PMP_NO_PERM);
   pmp_ipi_release_lock();
 #endif
   /* unset PMP of itself */
@@ -310,7 +315,7 @@ int pmp_set_global(int region_idx, uint8_t perm)
    * by ensuring only one hart can enter this region at a time */
 #ifdef __riscv_atomic
   pmp_ipi_acquire_lock();
-  //send_and_sync_pmp_ipi(region_idx, IPI_PMP_SET, perm);
+  send_and_sync_pmp_ipi(region_idx, IPI_PMP_SET, perm);
   pmp_ipi_release_lock();
 #endif
   /* set PMP of itself */
