@@ -218,7 +218,7 @@ static void send_pmp_ipi(uintptr_t recipient, uint8_t perm)
 */
 static void send_and_sync_pmp_ipi(int region_idx, enum ipi_type type, uint8_t perm)
 {
-  sbi_printf("Syncing IPI\n")
+  sbi_printf("Syncing IPI\n");
   uintptr_t mask;
   if (sbi_hsm_hart_started_mask(0, &mask)) {
     sbi_printf("[SM:PMP] failed to get active harts");
