@@ -117,7 +117,6 @@ void sm_print_cert()
 void sm_init(void)
 {
 	// initialize SMM
-
   spin_lock(&sm_init_lock);
 
   sbi_printf("[SM] Initializing ... \n");
