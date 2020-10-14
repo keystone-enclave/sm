@@ -230,6 +230,8 @@ static void send_and_sync_pmp_ipi(int region_idx, enum ipi_type type, uint8_t pe
   // TODO make this cleaner
   mask = mask & (~(((ulong)1) << csr_read(mhartid)));
 
+  sbi_printf("[SM:PMP] IPI Mask: %lX\n", mask);
+
   for(ulong i=0, m=mask; m; i++, m>>=1) {
     if(m & 1) {
       send_pmp_ipi(i, perm);
