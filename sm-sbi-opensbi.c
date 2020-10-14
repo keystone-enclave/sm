@@ -85,6 +85,7 @@ static u32 PMP_IPI_EVENT;
 void register_pmp_ipi()
 {
   PMP_IPI_EVENT = sbi_ipi_event_create(&ipi_pmp);
+  sbi_printf("[SM] Registered PMP IPI event handler (%d)\n", PMP_IPI_EVENT);
 }
 
 int sm_sbi_send_ipi(uintptr_t recipient_mask){

@@ -218,8 +218,8 @@ static void send_pmp_ipi(uintptr_t recipient, uint8_t perm)
 */
 static void send_and_sync_pmp_ipi(int region_idx, enum ipi_type type, uint8_t perm)
 {
-  sbi_printf("Syncing IPI\n");
-  uintptr_t mask;
+  sbi_printf("[SM:PMP] Sending IPI for PMP sync from hart %lX\n", csr_read(mhartid));
+  ulong mask;
   if (sbi_hsm_hart_started_mask(0, &mask)) {
     sbi_printf("[SM:PMP] failed to get active harts");
     sbi_hart_hang();
@@ -228,22 +228,24 @@ static void send_and_sync_pmp_ipi(int region_idx, enum ipi_type type, uint8_t pe
   ipi_type = type;
 
   // TODO make this cleaner
-  mask = mask & (~(((uintptr_t)1) << csr_read(mhartid)));
+  mask = mask & (~(((ulong)1) << csr_read(mhartid)));
 
-  for(uintptr_t i=0, m=mask; m; i++, m>>=1) {
+  for(ulong i=0, m=mask; m; i++, m>>=1) {
     if(m & 1) {
       send_pmp_ipi(i, perm);
     }
   }
   sm_sbi_send_ipi(mask);
   /* wait until every other hart sets PMP */
-  for(uintptr_t i=0, m=mask; m; i++, m>>=1) {
+  for(ulong i=0, m=mask; m; i++, m>>=1) {
     if(m & 1) {
-      while( atomic_read(&ipi_mailbox[i].pending) ) {
+      while(atomic_read(&ipi_mailbox[i].pending) ) {
         continue;
       }
     }
   }
+  sbi_hart_pmp_dump(sbi_scratch_thishart_ptr());
+  sbi_printf("[SM:PMP] PMP Synced!\n");
 }
 
 /*
@@ -260,8 +262,9 @@ void pmp_ipi_update() {
       pmp_unset(ipi_region_idx);
     }
 
-    // ipi_mailbox[csr_read(mhartid)].pending.counter = 0;
-    atomic_write(&(ipi_mailbox[csr_read(mhartid)].pending), 0);
+    ipi_mailbox[csr_read(mhartid)].pending.counter = 0;
+    // atomic_write(&(ipi_mailbox[csr_read(mhartid)].pending), 0);
+    sbi_printf("[SM:IPI] Updated IPI on hart %lX!\n", csr_read(mhartid));
   }
 }
 /*
