@@ -14,6 +14,7 @@
 #include <sbi/riscv_asm.h>
 #include <sbi/riscv_locks.h>
 #include <sbi/riscv_atomic.h>
+#include <sbi/sbi_domain.h>
 /* PMP global spin locks */
 static spinlock_t pmp_ipi_global_lock = SPIN_LOCK_INITIALIZER;
 static spinlock_t pmp_lock = SPIN_LOCK_INITIALIZER;
@@ -220,7 +221,10 @@ static void send_and_sync_pmp_ipi(int region_idx, enum ipi_type type, uint8_t pe
 {
   sbi_printf("[SM:PMP] Sending IPI for PMP sync from hart %lX\n", csr_read(mhartid));
   ulong mask;
-  if (sbi_hsm_hart_started_mask(0, &mask)) {
+
+  struct sbi_domain *dom = sbi_domain_thishart_ptr();
+
+  if (sbi_hsm_hart_started_mask(dom, 0, &mask)) {
     sbi_printf("[SM:PMP] failed to get active harts");
     sbi_hart_hang();
   }
@@ -246,7 +250,7 @@ static void send_and_sync_pmp_ipi(int region_idx, enum ipi_type type, uint8_t pe
       }
     }
   }
-  sbi_hart_pmp_dump(sbi_scratch_thishart_ptr());
+  //sbi_hart_pmp_dump(sbi_scratch_thishart_ptr());
   sbi_printf("[SM:PMP] PMP Synced!\n");
 }
 
