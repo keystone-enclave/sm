@@ -210,7 +210,8 @@ static void send_pmp_ipi(uintptr_t recipient, uint8_t perm)
   /* never send IPI to my self; it will result in a deadlock */
   // if (recipient == csr_read(mhartid)) return; // Handled in send and sync
   // ipi_mailbox[recipient].pending = 1;
-  atomic_write(&(ipi_mailbox[recipient].pending), 1);
+  // atomic_write(&(ipi_mailbox[recipient].pending), 1);
+  ipi_mailbox[csr_read(mhartid)].pending.counter = 1;
   ipi_mailbox[recipient].perm = perm & PMP_ALL_PERM;
 }
 
@@ -252,6 +253,7 @@ static void send_and_sync_pmp_ipi(int region_idx, enum ipi_type type, uint8_t pe
   }
   //sbi_hart_pmp_dump(sbi_scratch_thishart_ptr());
   sbi_printf("[SM:PMP] PMP Synced!\n");
+  // sbi_domain_dump(dom, "");
 }
 
 /*
