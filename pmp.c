@@ -210,9 +210,9 @@ static void send_pmp_ipi(uintptr_t recipient, uint8_t perm)
   /* never send IPI to my self; it will result in a deadlock */
   // if (recipient == csr_read(mhartid)) return; // Handled in send and sync
   // ipi_mailbox[recipient].pending = 1;
-  // atomic_write(&(ipi_mailbox[recipient].pending), 1);
-  ipi_mailbox[csr_read(mhartid)].pending.counter = 1;
+  // ipi_mailbox[csr_read(mhartid)].pending.counter = 1;
   ipi_mailbox[recipient].perm = perm & PMP_ALL_PERM;
+  atomic_write(&(ipi_mailbox[recipient].pending), 1);
 }
 
 /**
@@ -262,7 +262,7 @@ static void send_and_sync_pmp_ipi(int region_idx, enum ipi_type type, uint8_t pe
  * Otherwise, we do nothing.
  */
 void pmp_ipi_update() {
-  if (ipi_mailbox[csr_read(mhartid)].pending.counter) {
+  if (atomic_read(&ipi_mailbox[csr_read(mhartid)].pending)) {
     if(ipi_type == IPI_PMP_SET) {
       uint8_t perm = ipi_mailbox[csr_read(mhartid)].perm;
       pmp_set_keystone(ipi_region_idx, perm);
@@ -270,9 +270,9 @@ void pmp_ipi_update() {
       pmp_unset(ipi_region_idx);
     }
 
-    ipi_mailbox[csr_read(mhartid)].pending.counter = 0;
-    // atomic_write(&(ipi_mailbox[csr_read(mhartid)].pending), 0);
+    // ipi_mailbox[csr_read(mhartid)].pending.counter = 0;
     sbi_printf("[SM:IPI] Updated IPI on hart %lX!\n", csr_read(mhartid));
+    atomic_write(&(ipi_mailbox[csr_read(mhartid)].pending), 0);
   }
 }
 /*
