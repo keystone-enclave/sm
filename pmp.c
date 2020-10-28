@@ -208,7 +208,7 @@ static void send_pmp_ipi(uintptr_t recipient, uint8_t perm)
 {
   // if (((disabled_hart_mask >> recipient) & 1)) return;
   /* never send IPI to my self; it will result in a deadlock */
-  // if (recipient == csr_read(mhartid)) return; // Handled in send and sync
+  if (recipient == csr_read(mhartid)) return; // Handled in send and sync
   // ipi_mailbox[recipient].pending = 1;
   // ipi_mailbox[csr_read(mhartid)].pending.counter = 1;
   ipi_mailbox[recipient].perm = perm & PMP_ALL_PERM;
@@ -266,7 +266,9 @@ void pmp_ipi_update() {
     if(ipi_type == IPI_PMP_SET) {
       uint8_t perm = ipi_mailbox[csr_read(mhartid)].perm;
       pmp_set_keystone(ipi_region_idx, perm);
+      sbi_printf("[SM:IPI] PMP set (%d) on hart %lX!\n", ipi_region_idx, csr_read(mhartid));
     } else {
+      sbi_printf("[SM:IPI] PMP unset (%d) on hart %lX!\n", ipi_region_idx, csr_read(mhartid));
       pmp_unset(ipi_region_idx);
     }
 
