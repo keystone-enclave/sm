@@ -8,7 +8,7 @@
 #include <sbi/sbi_scratch.h>
 #include <sbi/riscv_asm.h>
 #include <sbi/sbi_ecall.h>
-#include "sm_sbi_opensbi.h"
+#include "sm-sbi-opensbi.h"
 #include "pmp.h"
 #include "sm-sbi.h"
 #include "sm.h"
@@ -19,41 +19,51 @@ static int sbi_ecall_keystone_enclave_handler(unsigned long extid, unsigned long
                      struct sbi_trap_info *out_trap)
 {
   uintptr_t retval;
-  switch(funcid){
-  case SBI_SM_CREATE_ENCLAVE:
-    retval = mcall_sm_create_enclave(args[0]);
-    break;
-  case SBI_SM_DESTROY_ENCLAVE:
-    retval = mcall_sm_destroy_enclave(args[0]);
-    break;
-  case SBI_SM_RUN_ENCLAVE:
-    retval = mcall_sm_run_enclave(regs, args[0]);
-    break;
-  case SBI_SM_EXIT_ENCLAVE:
-    retval = mcall_sm_exit_enclave(regs, args[0]);
-    break;
-  case SBI_SM_STOP_ENCLAVE:
-    retval = mcall_sm_stop_enclave(regs, args[0]);
-    break;
-  case SBI_SM_RESUME_ENCLAVE:
-    retval = mcall_sm_resume_enclave(regs, args[0]);
-    break;
-  case SBI_SM_ATTEST_ENCLAVE:
-    retval = mcall_sm_attest_enclave(args[0], args[1], args[2]);
-    break;
-  case SBI_SM_RANDOM:
-    retval = mcall_sm_random();
-    break;
-  case SBI_SM_GET_SEALING_KEY:
-    retval = mcall_sm_get_sealing_key(args[0], args[1], args[2]);
-    break;
-  case SBI_SM_CALL_PLUGIN:
-    retval = mcall_sm_call_plugin(args[0], args[1], args[2], args[3]);
-    break;
-  default:
-    retval = ENCLAVE_NOT_IMPLEMENTED;
-    break;
 
+  sbi_printf("SBI called with function ID = %d\n", (int)funcid);
+
+  //if (funcid <= FID_RANGE_DEPRECATED) {
+  //  return SBI_ERR_SM_DEPRECATED;
+  //} else if (funcid <= FID_RANGE_HOST && cpu_is_enclave_context()) {
+  //  return SBI_ERR_SM_ENCLAVE_SBI_PROHIBITED;
+  //} else if (funcid <= FID_RANGE_ENCLAVE && !cpu_is_enclave_context()) {
+  //  return SBI_ERR_SM_ENCLAVE_SBI_PROHIBITED;
+  //}
+
+  switch (funcid) {
+    case SBI_SM_CREATE_ENCLAVE:
+      retval = sbi_sm_create_enclave(args[0]);
+      break;
+    case SBI_SM_DESTROY_ENCLAVE:
+      retval = sbi_sm_destroy_enclave(args[0]);
+      break;
+    case SBI_SM_RUN_ENCLAVE:
+      retval = sbi_sm_run_enclave(regs, args[0]);
+      break;
+    case SBI_SM_RESUME_ENCLAVE:
+      retval = sbi_sm_resume_enclave(regs, args[0]);
+      break;
+    case SBI_SM_RANDOM:
+      retval = sbi_sm_random();
+      break;
+    case SBI_SM_ATTEST_ENCLAVE:
+      retval = sbi_sm_attest_enclave(args[0], args[1], args[2]);
+      break;
+    case SBI_SM_GET_SEALING_KEY:
+      retval = sbi_sm_get_sealing_key(args[0], args[1], args[2]);
+      break;
+    case SBI_SM_STOP_ENCLAVE:
+      retval = sbi_sm_stop_enclave(regs, args[0]);
+      break;
+    case SBI_SM_EXIT_ENCLAVE:
+      retval = sbi_sm_exit_enclave(regs, args[0]);
+      break;
+    case SBI_SM_CALL_PLUGIN:
+      retval = sbi_sm_call_plugin(args[0], args[1], args[2], args[3]);
+      break;
+    default:
+      retval = SBI_ERR_SM_NOT_IMPLEMENTED;
+      break;
   }
 
   *out_val = regs->a1;

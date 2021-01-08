@@ -13,48 +13,55 @@
 #define SMM_BASE  0x80000000
 #define SMM_SIZE  0x200000
 
-#define SBI_SM_CREATE_ENCLAVE    101
-#define SBI_SM_DESTROY_ENCLAVE   102
-#define SBI_SM_ATTEST_ENCLAVE    103
-#define SBI_SM_GET_SEALING_KEY   104
-#define SBI_SM_RUN_ENCLAVE       105
-#define SBI_SM_STOP_ENCLAVE      106
-#define SBI_SM_RESUME_ENCLAVE    107
-#define SBI_SM_RANDOM            108
-#define SBI_SM_EXIT_ENCLAVE     1101
-#define SBI_SM_CALL_PLUGIN      1000
-#define SBI_SM_NOT_IMPLEMENTED  1111
+/* 0-1999 are not used (deprecated) */
+#define FID_RANGE_DEPRECATED      1999
+/* 2000-2999 are called by host */
+#define SBI_SM_CREATE_ENCLAVE     2001
+#define SBI_SM_DESTROY_ENCLAVE    2002
+#define SBI_SM_RUN_ENCLAVE        2003
+#define SBI_SM_RESUME_ENCLAVE     2005
+#define FID_RANGE_HOST            2999
+/* 3000-3999 are called by enclave */
+#define SBI_SM_RANDOM             3001
+#define SBI_SM_ATTEST_ENCLAVE     3002
+#define SBI_SM_GET_SEALING_KEY    3003
+#define SBI_SM_STOP_ENCLAVE       3004
+#define SBI_SM_EXIT_ENCLAVE       3006
+#define FID_RANGE_ENCLAVE         3999
+/* 4000-4999 are experimental */
+#define SBI_SM_CALL_PLUGIN        4000
+#define FID_RANGE_CUSTOM          4999
 
 /* error codes */
-#define ENCLAVE_NOT_IMPLEMENTED             (enclave_ret_code)-2U
-#define ENCLAVE_UNKNOWN_ERROR               (enclave_ret_code)-1U
-#define ENCLAVE_SUCCESS                     (enclave_ret_code)0
-#define ENCLAVE_INVALID_ID                  (enclave_ret_code)1
-#define ENCLAVE_INTERRUPTED                 (enclave_ret_code)2
-#define ENCLAVE_PMP_FAILURE                 (enclave_ret_code)3
-#define ENCLAVE_NOT_RUNNABLE                (enclave_ret_code)4
-#define ENCLAVE_NOT_DESTROYABLE             (enclave_ret_code)5
-#define ENCLAVE_REGION_OVERLAPS             (enclave_ret_code)6
-#define ENCLAVE_NOT_ACCESSIBLE              (enclave_ret_code)7
-#define ENCLAVE_ILLEGAL_ARGUMENT            (enclave_ret_code)8
-#define ENCLAVE_NOT_RUNNING                 (enclave_ret_code)9
-#define ENCLAVE_NOT_RESUMABLE               (enclave_ret_code)10
-#define ENCLAVE_EDGE_CALL_HOST              (enclave_ret_code)11
-#define ENCLAVE_NOT_INITIALIZED             (enclave_ret_code)12
-#define ENCLAVE_NO_FREE_RESOURCE            (enclave_ret_code)13
-#define ENCLAVE_SBI_PROHIBITED              (enclave_ret_code)14
-#define ENCLAVE_ILLEGAL_PTE                 (enclave_ret_code)15
-#define ENCLAVE_NOT_FRESH                   (enclave_ret_code)16
+#define SBI_ERR_SM_ENCLAVE_SUCCESS                     0
+#define SBI_ERR_SM_ENCLAVE_UNKNOWN_ERROR               100000
+#define SBI_ERR_SM_ENCLAVE_INVALID_ID                  100001
+#define SBI_ERR_SM_ENCLAVE_INTERRUPTED                 100002
+#define SBI_ERR_SM_ENCLAVE_PMP_FAILURE                 100003
+#define SBI_ERR_SM_ENCLAVE_NOT_RUNNABLE                100004
+#define SBI_ERR_SM_ENCLAVE_NOT_DESTROYABLE             100005
+#define SBI_ERR_SM_ENCLAVE_REGION_OVERLAPS             100006
+#define SBI_ERR_SM_ENCLAVE_NOT_ACCESSIBLE              100007
+#define SBI_ERR_SM_ENCLAVE_ILLEGAL_ARGUMENT            100008
+#define SBI_ERR_SM_ENCLAVE_NOT_RUNNING                 100009
+#define SBI_ERR_SM_ENCLAVE_NOT_RESUMABLE               100010
+#define SBI_ERR_SM_ENCLAVE_EDGE_CALL_HOST              100011
+#define SBI_ERR_SM_ENCLAVE_NOT_INITIALIZED             100012
+#define SBI_ERR_SM_ENCLAVE_NO_FREE_RESOURCE            100013
+#define SBI_ERR_SM_ENCLAVE_SBI_PROHIBITED              100014
+#define SBI_ERR_SM_ENCLAVE_ILLEGAL_PTE                 100015
+#define SBI_ERR_SM_ENCLAVE_NOT_FRESH                   100016
+#define SBI_ERR_SM_DEPRECATED                          100099
+#define SBI_ERR_SM_NOT_IMPLEMENTED                     100100
 
-#define PMP_UNKNOWN_ERROR                   -1U
-#define PMP_SUCCESS                         0
-#define PMP_REGION_SIZE_INVALID             20
-#define PMP_REGION_NOT_PAGE_GRANULARITY     21
-#define PMP_REGION_NOT_ALIGNED              22
-#define PMP_REGION_MAX_REACHED              23
-#define PMP_REGION_INVALID                  24
-#define PMP_REGION_OVERLAP                  25
-#define PMP_REGION_IMPOSSIBLE_TOR           26
+#define SBI_ERR_SM_PMP_SUCCESS                         0
+#define SBI_ERR_SM_PMP_REGION_SIZE_INVALID             100020
+#define SBI_ERR_SM_PMP_REGION_NOT_PAGE_GRANULARITY     100021
+#define SBI_ERR_SM_PMP_REGION_NOT_ALIGNED              100022
+#define SBI_ERR_SM_PMP_REGION_MAX_REACHED              100023
+#define SBI_ERR_SM_PMP_REGION_INVALID                  100024
+#define SBI_ERR_SM_PMP_REGION_OVERLAP                  100025
+#define SBI_ERR_SM_PMP_REGION_IMPOSSIBLE_TOR           100026
 
 void sm_init(bool cold_boot);
 

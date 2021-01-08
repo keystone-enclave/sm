@@ -8,7 +8,7 @@
 #include "crypto.h"
 #include "enclave.h"
 #include "platform-hook.h"
-#include "sm_sbi_opensbi.h"
+#include "sm-sbi-opensbi.h"
 #include <sbi/sbi_string.h>
 #include <sbi/riscv_locks.h>
 #include <sbi/riscv_barrier.h>
@@ -136,7 +136,7 @@ void sm_init(bool cold_boot)
       sbi_hart_hang();
     }
 
-    if(platform_init_global_once() != ENCLAVE_SUCCESS) {
+    if (platform_init_global_once() != SBI_ERR_SM_ENCLAVE_SUCCESS) {
       sbi_printf("[SM] platform global init fatal error");
       sbi_hart_hang();
     }
@@ -162,7 +162,7 @@ void sm_init(bool cold_boot)
   pmp_set_keystone(os_region_id, PMP_ALL_PERM);
 
   /* Fire platform specific global init */
-  if(platform_init_global() != ENCLAVE_SUCCESS) {
+  if (platform_init_global() != SBI_ERR_SM_ENCLAVE_SUCCESS) {
     sbi_printf("[SM] platform global init fatal error");
     sbi_hart_hang();
   }
