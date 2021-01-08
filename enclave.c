@@ -233,13 +233,6 @@ uintptr_t get_enclave_region_base(enclave_id eid, int memid)
   return 0;
 }
 
-/* Ensures that dest ptr is in host, not in enclave regions
- */
-static int copy_word_to_host(uintptr_t dest_ptr, uintptr_t value)
-{
-  return copy_word_from_sm(dest_ptr, (uintptr_t *)&value);
-}
-
 // TODO: This function is externally used by sm-sbi.c.
 // Change it to be internal (remove from the enclave.h and make static)
 /* Internal function enforcing a copy source is from the untrusted world.
@@ -342,14 +335,13 @@ static int is_create_args_valid(struct keystone_sbi_create* args)
  *
  * This may fail if: it cannot allocate PMP regions, EIDs, etc
  */
-unsigned long create_enclave(struct keystone_sbi_create create_args)
+unsigned long create_enclave(unsigned long *eidptr, struct keystone_sbi_create create_args)
 {
   /* EPM and UTM parameters */
   uintptr_t base = create_args.epm_region.paddr;
   size_t size = create_args.epm_region.size;
   uintptr_t utbase = create_args.utm_region.paddr;
   size_t utsize = create_args.utm_region.size;
-  enclave_id* eidptr = create_args.eid_pptr;
 
   enclave_id eid;
   unsigned long ret;
@@ -422,11 +414,7 @@ unsigned long create_enclave(struct keystone_sbi_create create_args)
 
   enclaves[eid].state = FRESH;
   /* EIDs are unsigned int in size, copy via simple copy */
-
-  if (copy_word_to_host((uintptr_t)eidptr, (uintptr_t)eid) == -1) {
-    ret = SBI_ERR_SM_ENCLAVE_ILLEGAL_ARGUMENT;
-    goto unlock;
-  }
+  *eidptr = eid;
 
   spin_unlock(&encl_lock);
   return SBI_ERR_SM_ENCLAVE_SUCCESS;
@@ -537,7 +525,7 @@ unsigned long run_enclave(struct sbi_trap_regs *regs, enclave_id eid)
   return SBI_ERR_SM_ENCLAVE_SUCCESS;
 }
 
-unsigned long exit_enclave(struct sbi_trap_regs *regs, unsigned long retval, enclave_id eid)
+unsigned long exit_enclave(struct sbi_trap_regs *regs, enclave_id eid)
 {
   int exitable;
 
@@ -577,12 +565,12 @@ unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave
   context_switch_to_host(regs, eid, request == STOP_EDGE_CALL_HOST);
 
   switch(request) {
-  case(STOP_TIMER_INTERRUPT):
-    return SBI_ERR_SM_ENCLAVE_INTERRUPTED;
-  case(STOP_EDGE_CALL_HOST):
-    return SBI_ERR_SM_ENCLAVE_EDGE_CALL_HOST;
-  default:
-    return SBI_ERR_SM_ENCLAVE_UNKNOWN_ERROR;
+    case(STOP_TIMER_INTERRUPT):
+      return SBI_ERR_SM_ENCLAVE_INTERRUPTED;
+    case(STOP_EDGE_CALL_HOST):
+      return SBI_ERR_SM_ENCLAVE_EDGE_CALL_HOST;
+    default:
+      return SBI_ERR_SM_ENCLAVE_UNKNOWN_ERROR;
   }
 }
 

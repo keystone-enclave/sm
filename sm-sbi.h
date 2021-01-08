@@ -10,7 +10,7 @@
 #include <sbi/sbi_trap.h>
 
 unsigned long
-sbi_sm_create_enclave(uintptr_t create_args);
+sbi_sm_create_enclave(unsigned long *out_val, uintptr_t create_args);
 
 unsigned long
 sbi_sm_destroy_enclave(unsigned long eid);
@@ -19,7 +19,7 @@ unsigned long
 sbi_sm_run_enclave(struct sbi_trap_regs *regs, unsigned long eid);
 
 unsigned long
-sbi_sm_exit_enclave(struct sbi_trap_regs *regs, unsigned long retval);
+sbi_sm_exit_enclave(struct sbi_trap_regs *regs);
 
 unsigned long
 sbi_sm_stop_enclave(struct sbi_trap_regs *regs, unsigned long request);

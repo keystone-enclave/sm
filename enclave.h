@@ -115,12 +115,12 @@ struct sealing_key
 
 /*** SBI functions & external functions ***/
 // callables from the host
-unsigned long create_enclave(struct keystone_sbi_create create_args);
+unsigned long create_enclave(unsigned long *eid, struct keystone_sbi_create create_args);
 unsigned long destroy_enclave(enclave_id eid);
 unsigned long run_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long resume_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 // callables from the enclave
-unsigned long exit_enclave(struct sbi_trap_regs *regs, unsigned long retval, enclave_id eid);
+unsigned long exit_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave_id eid);
 unsigned long attest_enclave(uintptr_t report, uintptr_t data, uintptr_t size, enclave_id eid);
 /* attestation and virtual mapping validation */

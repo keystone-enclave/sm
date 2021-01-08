@@ -13,7 +13,7 @@
 #include <sbi/riscv_asm.h>
 #include <sbi/sbi_console.h>
 
-unsigned long sbi_sm_create_enclave(uintptr_t create_args)
+unsigned long sbi_sm_create_enclave(unsigned long* eid, uintptr_t create_args)
 {
   struct keystone_sbi_create create_args_local;
   unsigned long ret;
@@ -23,7 +23,7 @@ unsigned long sbi_sm_create_enclave(uintptr_t create_args)
   if (ret)
     return ret;
 
-  ret = create_enclave(create_args_local);
+  ret = create_enclave(eid, create_args_local);
   return ret;
 }
 
@@ -48,17 +48,17 @@ unsigned long sbi_sm_resume_enclave(struct sbi_trap_regs *regs, unsigned long ei
   return ret;
 }
 
-unsigned long sbi_sm_exit_enclave(struct sbi_trap_regs *regs, unsigned long retval)
+unsigned long sbi_sm_exit_enclave(struct sbi_trap_regs *regs)
 {
   unsigned long ret;
-  ret = exit_enclave(regs, (unsigned long) retval, cpu_get_enclave_id());
+  ret = exit_enclave(regs, cpu_get_enclave_id());
   return ret;
 }
 
 unsigned long sbi_sm_stop_enclave(struct sbi_trap_regs *regs, unsigned long request)
 {
   unsigned long ret;
-  ret = stop_enclave(regs, (uint64_t)request, cpu_get_enclave_id());
+  ret = stop_enclave(regs, request, cpu_get_enclave_id());
   return ret;
 }
 
