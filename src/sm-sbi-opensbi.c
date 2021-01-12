@@ -32,7 +32,6 @@ static int sbi_ecall_keystone_enclave_handler(unsigned long extid, unsigned long
     if (!cpu_is_enclave_context())
       return SBI_ERR_SM_ENCLAVE_SBI_PROHIBITED;
   }
-  sbi_printf("SM funcid = %d\n", (int) funcid);
 
   switch (funcid) {
     case SBI_SM_CREATE_ENCLAVE:

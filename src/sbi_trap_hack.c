@@ -60,8 +60,7 @@ static void sbi_trap_error(const char *msg, int rc,
 	sbi_printf("%s: hart%d: %s=0x%" PRILX "\n", __func__, hartid, "t6",
 		   regs->t6);
 
-  regs->a1 = rc;
-  sbi_sm_exit_enclave(regs);
+  sbi_sm_exit_enclave(regs, rc);
 }
 
 
