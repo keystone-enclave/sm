@@ -192,15 +192,13 @@ int pmp_detect_region_overlap_atomic(uintptr_t addr, uintptr_t size)
 static void send_and_sync_pmp_ipi(int region_idx, int type, uint8_t perm)
 {
   ulong mask = 0;
-  struct sbi_pmp_ipi_info info;
+  ulong source_hart = current_hartid();
+  struct sbi_tlb_info tlb_info;
   sbi_hsm_hart_started_mask(sbi_domain_thishart_ptr(), 0, &mask);
 
-  info.type = type;
-  info.rid = region_idx;
-  info.perm = perm;
-  SBI_HARTMASK_INIT_EXCEPT(&(info.smask), current_hartid());
-
-  sbi_pmp_ipi_request(mask, 0, &info);
+  SBI_TLB_INFO_INIT(&tlb_info, type, region_idx, perm, 0,
+      sbi_pmp_ipi_local_update, source_hart);
+  sbi_tlb_request(mask, 0, &tlb_info);
 }
 
 /*********************************

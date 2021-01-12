@@ -19,7 +19,7 @@ unsigned long
 sbi_sm_run_enclave(struct sbi_trap_regs *regs, unsigned long eid);
 
 unsigned long
-sbi_sm_exit_enclave(struct sbi_trap_regs *regs);
+sbi_sm_exit_enclave(struct sbi_trap_regs *regs, unsigned long retval);
 
 unsigned long
 sbi_sm_stop_enclave(struct sbi_trap_regs *regs, unsigned long request);
