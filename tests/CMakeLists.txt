@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.12)
 project(keystone_test C)
 
+SET(SM_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
+SET(SM_SRC ${SM_ROOT}/src)
+SET(SM_TESTS ${SM_ROOT}/tests)
+SET(OPENSBI_SRC ${SM_ROOT}/opensbi)
+
 if (RISCV32)
   SET(CMAKE_C_COMPILER riscv32-unknown-linux-gnu-gcc)
   SET(QEMU qemu-riscv32)
@@ -11,13 +16,13 @@ else ()
   SET(LIBCMOCKA ../cmocka/libcmocka-static.a)
 endif()
 
-SET(CMAKE_C_FLAGS -static)
+SET(CMAKE_C_FLAGS "-static -nostdlib")
 
 include_directories(
     ${CMAKE_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
     ./cmocka/
-    ../../../../../include/
+    ${OPENSBI_SRC}/include
     ../
 )
 enable_testing()
@@ -32,7 +37,7 @@ add_test(test_pmp
         ${QEMU} ${CMAKE_CURRENT_BINARY_DIR}/test_pmp)
 set_target_properties(test_pmp
         PROPERTIES
-        COMPILE_FLAGS -DTARGET_PLATFORM_HEADER=\\"..\/platform\/generic\/platform.h\\"
+        COMPILE_FLAGS -DTARGET_PLATFORM_HEADER=\\"${SM_SRC}\/platform\/generic\/platform.h\\"
         LINK_FLAGS
           "-Wl,--wrap=sbi_printf \
           -Wl,--wrap=sbi_hart_hang \
@@ -47,28 +52,28 @@ add_executable(test_enclave
                 mock/opensbi.c
                 mock/mprv.c
                 mock/secure_boot.c
-                ../platform/generic/platform.c
-                ../sha3/sha3.c
-                ../ed25519/ge.c
-                ../ed25519/fe.c
-                ../ed25519/sc.c
-                ../ed25519/sign.c
-                ../ed25519/keypair.c
-                ../hkdf_sha3_512/hkdf_sha3_512.c
-                ../hmac_sha3/hmac_sha3.c
-                ../pmp.c
-                ../attest.c
-                ../cpu.c
-                ../crypto.c
-                ../thread.c
-                ../sm.c
+                ${SM_SRC}/platform/generic/platform.c
+                ${SM_SRC}/sha3/sha3.c
+                ${SM_SRC}/ed25519/ge.c
+                ${SM_SRC}/ed25519/fe.c
+                ${SM_SRC}/ed25519/sc.c
+                ${SM_SRC}/ed25519/sign.c
+                ${SM_SRC}/ed25519/keypair.c
+                ${SM_SRC}/hkdf_sha3_512/hkdf_sha3_512.c
+                ${SM_SRC}/hmac_sha3/hmac_sha3.c
+                ${SM_SRC}/pmp.c
+                ${SM_SRC}/attest.c
+                ${SM_SRC}/cpu.c
+                ${SM_SRC}/crypto.c
+                ${SM_SRC}/thread.c
+                ${SM_SRC}/sm.c
                 )
 target_link_libraries(test_enclave cmocka)
 add_test(test_enclave
         ${QEMU} ${CMAKE_CURRENT_BINARY_DIR}/test_enclave)
 set_target_properties(test_enclave
         PROPERTIES
-        COMPILE_FLAGS -DTARGET_PLATFORM_HEADER=\\"..\/platform\/generic\/platform.h\\"
+        COMPILE_FLAGS -DTARGET_PLATFORM_HEADER=\\"${SM_SRC}\/platform\/generic\/platform.h\\"
         LINK_FLAGS
           "-Wl,--wrap=sbi_printf \
           -Wl,--wrap=spin_lock \
