@@ -3,6 +3,8 @@
 #include <sbi/sbi_scratch.h>
 #include <sbi/sbi_platform.h>
 #include <sbi/sbi_console.h>
+#include <sbi/sbi_hsm.h>
+#include <sbi/sbi_domain.h>
 #include "ipi.h"
 #include "pmp.h"
 

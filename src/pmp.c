@@ -10,8 +10,6 @@
 #include "page.h"
 #include "ipi.h"
 #include <sbi/sbi_hart.h>
-#include <sbi/sbi_hsm.h>
-#include <sbi/sbi_domain.h>
 #include <sbi/riscv_asm.h>
 #include <sbi/riscv_locks.h>
 #include <sbi/riscv_atomic.h>
