@@ -8,10 +8,12 @@ SET(OPENSBI_SRC ${SM_ROOT}/opensbi)
 
 if (RISCV32)
   SET(CMAKE_C_COMPILER riscv32-unknown-linux-gnu-gcc)
+  SET(CROSS_COMPILE riscv32-unknown-elf-)
   SET(QEMU qemu-riscv32)
   SET(LIBCMOCKA ../cmocka/libcmocka-static-32.a)
 else ()
   SET(CMAKE_C_COMPILER riscv64-unknown-linux-gnu-gcc)
+  SET(CROSS_COMPILE riscv64-unknown-elf-)
   SET(QEMU qemu-riscv64)
   SET(LIBCMOCKA ../cmocka/libcmocka-static.a)
 endif()
@@ -32,6 +34,12 @@ SET_TARGET_PROPERTIES(cmocka PROPERTIES IMPORTED_LOCATION ${CMOCKA_LIBRARY})
 
 add_library(opensbi STATIC IMPORTED)
 SET_TARGET_PROPERTIES(opensbi PROPERTIES IMPORTED_LOCATION ${OPENSBI_SRC}/build/lib/libsbi.a)
+
+add_custom_target(opensbi-build
+    COMMAND make -C ${OPENSBI_SRC} CROSS_COMPILE=${CROSS_COMPILE} 
+      PLATFORM_RISCV_ISA=rv64imafd PLATFORM_RISCV_ABI=lp64d
+)
+add_dependencies(opensbi opensbi-build)
 
 ### skip these symbols
 set(MOCK_SYMBOLS
