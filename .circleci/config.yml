@@ -74,7 +74,7 @@ jobs:
       - run:
           name: "Build for generic platform"
           command: |
-              make -C opensbi O=$(pwd)/build PLATFORM_DIR=$(pwd)/plat/generic CROSS_COMPILE=riscv64-unknown-elf- \
+              make -C opensbi O=$(pwd)/build PLATFORM_DIR=$(pwd)/plat/generic CROSS_COMPILE=riscv32-unknown-elf- \
                 PLATFORM_RISCV_XLEN=32 PLATFORM_RISCV_ISA=rv32imafd PLATFORM_RISCV_ABI=ilp32d
   build-platform-sifive-fu540:
     executor: setup-rv64gc
