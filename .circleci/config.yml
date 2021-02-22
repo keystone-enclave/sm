@@ -19,9 +19,20 @@ commands:
       - run:
           command: |
             cd /keystone
+            source source.sh
             mkdir build
             cd build
             cmake ..
+            make patch
+  patch-opensbi-32:
+    steps:
+      - run:
+          command: |
+            cd /keystone
+            source source.sh
+            mkdir build
+            cd build
+            cmake .. -DRISCV32=y
             make patch
   update-riscv-toolchain-path:
     steps:
@@ -48,6 +59,7 @@ jobs:
     steps:
       - checkout
       - update-riscv-toolchain-path
+      - patch-opensbi
       - run:
           name: "Build for generic platform"
           command: |
@@ -58,6 +70,7 @@ jobs:
     steps:
       - checkout
       - update-riscv-toolchain-path
+      - patch-opensbi-32
       - run:
           name: "Build for generic platform"
           command: |
@@ -69,6 +82,7 @@ jobs:
     steps:
       - checkout
       - update-riscv-toolchain-path
+      - patch-opensbi
       - run:
           name: "Build for sifive/fu540 platform"
           command: |
