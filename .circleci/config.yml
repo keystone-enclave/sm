@@ -12,6 +12,17 @@ executors:
 
 # toolchain should be already installed in the docker image
 commands:
+  # Patch opensbi for secure boot parameters.
+  # This will be removed once the secure key locations are moved to the device tree
+  patch-opensbi:
+    steps:
+      - run:
+          command: |
+            cd /keystone
+            mkdir build
+            cd build
+            cmake ..
+            make patch
   update-riscv-toolchain-path:
     steps:
       - run: echo 'export PATH=/keystone/riscv64/bin:/keystone/riscv32/bin:$PATH' >> $BASH_ENV
