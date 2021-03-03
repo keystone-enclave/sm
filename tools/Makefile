@@ -17,7 +17,7 @@ hash_generator.o: hash_generator.c
 	$(CC) -c $^ $(CFLAGS)
 
 hash: $(FW_ELF_PATH) $(FW_BIN_PATH) hashgen
-	./hashgen $(FW_BIN_PATH) $(FW_SIZE) > hash.h
+	./hashgen $(FW_BIN_PATH) $(FW_SIZE) > sm_expected_hash.h
 
 clean:
-	rm -f *.o hashgen hash.h
+	rm -f *.o hashgen sm_expected_hash.h

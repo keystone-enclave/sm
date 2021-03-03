@@ -16,17 +16,14 @@ int main(int argc, char* argv[])
   unsigned char sm_hash[HASH_SIZE];
   unsigned char* buf;
   FILE* fw = fopen(argv[1],"rb");
-  int fsize;
+  int fwsize;
 
   if (!fw) {
     printf("File %s does not exist\n", argv[1]);
     return -1;
   }
 
-  // obtain file size:
-  fseek (fw, 0 , SEEK_END);
-  fsize = ftell (fw);
-  rewind (fw);
+  fwsize = strtol(argv[2], NULL, 16);
 
   // copy all file contents
   buf = (unsigned char*) malloc(FW_MEMORY_SIZE);
@@ -36,8 +33,8 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  int result = fread (buf,1,0x30a90,fw);
-  if (result != 0x30a90) {
+  int result = fread (buf,1,fwsize,fw);
+  if (result != fwsize) {
     printf("Failed to read file\n");
     return -1;
   }
@@ -56,7 +53,7 @@ int main(int argc, char* argv[])
     if (i % 8 == 0) {
       printf("\n");
     }
-    printf("\"0x%.2x\",", sm_hash[i]);
+    printf("0x%.2x,", sm_hash[i]);
   }
 
   printf("};\n");
