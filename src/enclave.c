@@ -7,6 +7,7 @@
 #include "pmp.h"
 #include "page.h"
 #include "cpu.h"
+#include "string.h"
 #include "platform-hook.h"
 #include <sbi/sbi_string.h>
 #include <sbi/riscv_asm.h>
@@ -685,9 +686,7 @@ unsigned long get_sealing_key(uintptr_t sealing_key, uintptr_t key_ident,
   return SBI_ERR_SM_ENCLAVE_SUCCESS;
 }
 
-unsigned long clone_enclave(enclave_id *eid, struct keystone_sbi_snapshot create_args){
-
-  int ret;
+unsigned long clone_enclave(enclave_id *eidptr, struct keystone_sbi_snapshot_create create_args){
 
   /* EPM and UTM parameters */
   uintptr_t base = create_args.epm_region.paddr;
@@ -700,7 +699,7 @@ unsigned long clone_enclave(enclave_id *eid, struct keystone_sbi_snapshot create
   int region, shared_region;
 
   //Find and check if snapshot handle is valid 
-  struct enclave_snapshot *snapshot = enclave_snapshots[create_args.snapshot_id];
+  struct enclave_snapshot *snapshot = &enclave_snapshots[create_args.snapshot_id];
 
   if(!snapshot->valid){
     ret = -1; 
@@ -739,25 +738,40 @@ unsigned long clone_enclave(enclave_id *eid, struct keystone_sbi_snapshot create
 
   int region_idx = 2; 
   // Copy any regions in snapshot to new enclave 
-  for(int memid = 0; i < ENCLAVE_REGIONS_MAX; i++){
+  for(int memid = 0; memid < ENCLAVE_REGIONS_MAX; memid++){
     if(snapshot->regions[memid].type != REGION_INVALID) {
-      memcpy(&enclaves[eid]->regions[region_idx++], &snapshot->regions[memid], sizeof(struct enclave_region));
+      memcpy(&enclaves[eid].regions[region_idx++], &snapshot->regions[memid], sizeof(struct enclave_region));
     }
   }
  
   //Copy parameters from snapshot to enclave 
-  enclaves[eid].encl_satp = snapshot->encl_satp
+  enclaves[eid].encl_satp = snapshot->encl_satp;
   enclaves[eid].n_thread = 0;
   memcpy(&enclaves[eid].params, &snapshot->params, sizeof(struct runtime_va_params_t ));
   memcpy(&enclaves[eid].pa_params, &snapshot->pa_params, sizeof(struct runtime_pa_params));
+  *eidptr = eid; 
 
+// unlock:
+//   spin_unlock(&encl_lock);
+// free_platform:
+  platform_destroy_enclave(&enclaves[eid]);
+// unset_region:
+//   pmp_unset_global(region);
+free_shared_region:
+  pmp_region_free_atomic(shared_region);
+free_region:
+  pmp_region_free_atomic(region);
+free_encl_idx:
+  encl_free_eid(eid);
+error:
   return 0; 
 }
 
 unsigned long create_snapshot(enclave_id eid){
+  unsigned long ret = -1; 
   int snapshot_idx = -1;
-  struct enclave_snapshot *snapshot; 
-  struct enclave *current_enclave; 
+  struct enclave_snapshot *snapshot = NULL; 
+  struct enclave *current_enclave = NULL; 
 
   //Find a free snapshot
   for(snapshot_idx = 0; snapshot_idx < SNAPSHOT_MAX; snapshot_idx++){
@@ -777,10 +791,10 @@ unsigned long create_snapshot(enclave_id eid){
   snapshot->valid = 1; 
   snapshot->encl_satp = current_enclave->encl_satp; 
 
-  memcpy(snapshot->regions, current_enclave->regions, ENCLAVE_REGIONS_MAX * sizeof(struct enclave_region));
-  memcpy(snapshot->snapshot_state, current_enclave->threads[0], sizeof(struct thread_state));
-  memcpy(snapshot->params, current_enclave->params, sizeof(struct runtime_va_params_t));
-  memcpy(snapshot->pa_params, current_enclave->pa_params, sizeof(struct runtime_pa_params));
+  memcpy(&snapshot->regions, &current_enclave->regions, ENCLAVE_REGIONS_MAX * sizeof(struct enclave_region));
+  memcpy(&snapshot->snapshot_state, &current_enclave->threads[0], sizeof(struct thread_state));
+  memcpy(&snapshot->params, &current_enclave->params, sizeof(struct runtime_va_params_t));
+  memcpy(&snapshot->pa_params, &current_enclave->pa_params, sizeof(struct runtime_pa_params));
 
   return ret; 
 }

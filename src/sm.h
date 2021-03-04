@@ -99,7 +99,7 @@ struct runtime_pa_params
   uintptr_t free_base;
 };
 
-struct keystone_sb_snapshot_create
+struct keystone_sbi_snapshot_create
 {
   struct keystone_sbi_pregion epm_region;
   struct keystone_sbi_pregion utm_region;
