@@ -151,6 +151,7 @@ unsigned long validate_and_hash_enclave(struct enclave* enclave);
 // TODO: These functions are supposed to be internal functions.
 void enclave_init_metadata();
 unsigned long copy_enclave_create_args(uintptr_t src, struct keystone_sbi_create* dest);
+unsigned long copy_enclave_snapshot_args(uintptr_t src, struct keystone_sbi_snapshot_create *dest);
 int get_enclave_region_index(enclave_id eid, enum enclave_region_type type);
 uintptr_t get_enclave_region_base(enclave_id eid, int memid);
 uintptr_t get_enclave_region_size(enclave_id eid, int memid);

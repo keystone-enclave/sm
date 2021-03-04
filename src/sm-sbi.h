@@ -33,7 +33,10 @@ unsigned long
 sbi_sm_get_sealing_key(uintptr_t seal_key, uintptr_t key_ident, size_t key_ident_size);
 
 unsigned long
-sbi_clone(unsigned long eid);
+sbi_clone(unsigned long eidptr, uintptr_t create_args);
+
+unsigned long
+sbi_snapshot(unsigned long eid);
 
 unsigned long
 sbi_sm_random();

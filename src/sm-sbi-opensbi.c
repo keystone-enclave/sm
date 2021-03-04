@@ -70,7 +70,7 @@ static int sbi_ecall_keystone_enclave_handler(unsigned long extid, unsigned long
       retval = sbi_sm_call_plugin(regs->a0, regs->a1, regs->a2, regs->a3);
       break;
     case SBI_SM_CLONE_ENCLAVE:
-      retval = sbi_clone(regs->a0);
+      retval = sbi_clone(regs->a0, regs->a1);
       break;
     case SBI_SM_SNAPSHOT:
       retval = sbi_snapshot(regs->a0);

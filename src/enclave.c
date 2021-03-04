@@ -1,4 +1,4 @@
-//******************************************************************************
+ //******************************************************************************
 // Copyright (c) 2018, The Regents of the University of California (Regents).
 // All Rights Reserved. See LICENSE for license details.
 //------------------------------------------------------------------------------
@@ -244,6 +244,16 @@ uintptr_t get_enclave_region_base(enclave_id eid, int memid)
  * Dest should be inside the SM memory.
  */
 unsigned long copy_enclave_create_args(uintptr_t src, struct keystone_sbi_create* dest){
+
+  int region_overlap = copy_to_sm(dest, src, sizeof(struct keystone_sbi_create));
+
+  if (region_overlap)
+    return SBI_ERR_SM_ENCLAVE_REGION_OVERLAPS;
+  else
+    return SBI_ERR_SM_ENCLAVE_SUCCESS;
+}
+
+unsigned long copy_enclave_snapshot_args(uintptr_t src, struct keystone_sbi_snapshot_create *dest){
 
   int region_overlap = copy_to_sm(dest, src, sizeof(struct keystone_sbi_create));
 
