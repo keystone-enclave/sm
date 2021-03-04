@@ -17,6 +17,8 @@
 // Special target platform header, set by configure script
 #include TARGET_PLATFORM_HEADER
 
+#define NO_PARENT -1 
+
 #define ATTEST_DATA_MAXLEN  1024
 #define ENCLAVE_REGIONS_MAX 8
 /* TODO: does not support multithreaded enclave yet */
@@ -63,6 +65,7 @@ struct enclave
 {
   //spinlock_t lock; //local enclave lock. we don't need this until we have multithreaded enclave
   enclave_id eid; //enclave id
+  enclave_id parent_eid; // parent id
   unsigned long encl_satp; // enclave's page table base
   enclave_state state; // global state of the enclave
 
@@ -83,6 +86,24 @@ struct enclave
 
   struct platform_enclave_data ped;
 };
+
+struct enclave_snapshot
+{
+  enclave_id eid; //owner id, where the snapshot originated from 
+
+  int valid; // Is this snapshot valid? 
+
+  /* parameters */
+  struct runtime_va_params_t params;
+  struct runtime_pa_params pa_params;
+
+  /* Physical memory regions associate with this enclave */
+  struct enclave_region regions[ENCLAVE_REGIONS_MAX];
+
+  unsigned long encl_satp; // enclave's page table base
+  struct thread_state snapshot_state; 
+};
+
 
 /* attestation reports */
 struct enclave_report
@@ -119,10 +140,12 @@ unsigned long create_enclave(unsigned long *eid, struct keystone_sbi_create crea
 unsigned long destroy_enclave(enclave_id eid);
 unsigned long run_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long resume_enclave(struct sbi_trap_regs *regs, enclave_id eid);
+unsigned long clone_enclave(enclave_id *eid, struct keystone_sbi_snapshot create_args); 
 // callables from the enclave
 unsigned long exit_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave_id eid);
 unsigned long attest_enclave(uintptr_t report, uintptr_t data, uintptr_t size, enclave_id eid);
+unsigned long create_snapshot(enclave_id eid);
 /* attestation and virtual mapping validation */
 unsigned long validate_and_hash_enclave(struct enclave* enclave);
 // TODO: These functions are supposed to be internal functions.

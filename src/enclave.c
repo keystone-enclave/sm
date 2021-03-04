@@ -14,8 +14,11 @@
 #include <sbi/sbi_console.h>
 
 #define ENCL_MAX  16
+#define SNAPSHOT_MAX 4 
 
 struct enclave enclaves[ENCL_MAX];
+struct enclave_snapshot enclave_snapshots[SNAPSHOT_MAX];
+
 #define ENCLAVE_EXISTS(eid) (eid >= 0 && eid < ENCL_MAX && enclaves[eid].state >= 0)
 
 static spinlock_t encl_lock = SPIN_LOCK_INITIALIZER;
@@ -385,6 +388,7 @@ unsigned long create_enclave(unsigned long *eidptr, struct keystone_sbi_create c
 
   // initialize enclave metadata
   enclaves[eid].eid = eid;
+  enclaves[eid].parent_eid = NO_PARENT; 
 
   enclaves[eid].regions[0].pmp_rid = region;
   enclaves[eid].regions[0].type = REGION_EPM;
@@ -679,4 +683,104 @@ unsigned long get_sealing_key(uintptr_t sealing_key, uintptr_t key_ident,
           SEALING_KEY_SIZE);
 
   return SBI_ERR_SM_ENCLAVE_SUCCESS;
+}
+
+unsigned long clone_enclave(enclave_id *eid, struct keystone_sbi_snapshot create_args){
+
+  int ret;
+
+  /* EPM and UTM parameters */
+  uintptr_t base = create_args.epm_region.paddr;
+  size_t size = create_args.epm_region.size;
+  uintptr_t utbase = create_args.utm_region.paddr;
+  size_t utsize = create_args.utm_region.size;
+
+  enclave_id eid;
+  unsigned long ret;
+  int region, shared_region;
+
+  //Find and check if snapshot handle is valid 
+  struct enclave_snapshot *snapshot = enclave_snapshots[create_args.snapshot_id];
+
+  if(!snapshot->valid){
+    ret = -1; 
+    return ret; 
+  }
+
+  // allocate eid
+  ret = SBI_ERR_SM_ENCLAVE_NO_FREE_RESOURCE;
+  if (encl_alloc_eid(&eid) != SBI_ERR_SM_ENCLAVE_SUCCESS)
+    goto error;
+
+  // create a PMP region bound to the enclave
+  ret = SBI_ERR_SM_ENCLAVE_PMP_FAILURE;
+  if(pmp_region_init_atomic(base, size, PMP_PRI_ANY, &region, 0))
+    goto free_encl_idx;
+
+  // create PMP region for shared memory
+  if(pmp_region_init_atomic(utbase, utsize, PMP_PRI_BOTTOM, &shared_region, 0))
+    goto free_region;
+
+  // set pmp registers for private region (not shared)
+  if(pmp_set_global(region, PMP_NO_PERM))
+    goto free_shared_region;
+
+  // cleanup some memory regions for sanity See issue #38
+  clean_enclave_memory(utbase, utsize);
+
+  // initialize enclave's unique metadata
+  enclaves[eid].eid = eid;
+  enclaves[eid].parent_eid = cpu_get_enclave_id(); 
+
+  enclaves[eid].regions[0].pmp_rid = region;
+  enclaves[eid].regions[0].type = REGION_EPM;
+  enclaves[eid].regions[1].pmp_rid = shared_region;
+  enclaves[eid].regions[1].type = REGION_UTM;
+
+  int region_idx = 2; 
+  // Copy any regions in snapshot to new enclave 
+  for(int memid = 0; i < ENCLAVE_REGIONS_MAX; i++){
+    if(snapshot->regions[memid].type != REGION_INVALID) {
+      memcpy(&enclaves[eid]->regions[region_idx++], &snapshot->regions[memid], sizeof(struct enclave_region));
+    }
+  }
+ 
+  //Copy parameters from snapshot to enclave 
+  enclaves[eid].encl_satp = snapshot->encl_satp
+  enclaves[eid].n_thread = 0;
+  memcpy(&enclaves[eid].params, &snapshot->params, sizeof(struct runtime_va_params_t ));
+  memcpy(&enclaves[eid].pa_params, &snapshot->pa_params, sizeof(struct runtime_pa_params));
+
+  return 0; 
+}
+
+unsigned long create_snapshot(enclave_id eid){
+  int snapshot_idx = -1;
+  struct enclave_snapshot *snapshot; 
+  struct enclave *current_enclave; 
+
+  //Find a free snapshot
+  for(snapshot_idx = 0; snapshot_idx < SNAPSHOT_MAX; snapshot_idx++){
+      if(!enclave_snapshots[snapshot_idx].valid){
+          snapshot = &enclave_snapshots[snapshot_idx]; 
+          ret = snapshot_idx; 
+          break;
+      }
+  }
+
+  if(ret == -1){
+    return ret; 
+  }
+
+  current_enclave = &enclaves[cpu_get_enclave_id()]; 
+  snapshot->eid = eid; 
+  snapshot->valid = 1; 
+  snapshot->encl_satp = current_enclave->encl_satp; 
+
+  memcpy(snapshot->regions, current_enclave->regions, ENCLAVE_REGIONS_MAX * sizeof(struct enclave_region));
+  memcpy(snapshot->snapshot_state, current_enclave->threads[0], sizeof(struct thread_state));
+  memcpy(snapshot->params, current_enclave->params, sizeof(struct runtime_va_params_t));
+  memcpy(snapshot->pa_params, current_enclave->pa_params, sizeof(struct runtime_pa_params));
+
+  return ret; 
 }

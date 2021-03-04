@@ -26,6 +26,30 @@ unsigned long sbi_sm_create_enclave(unsigned long* eid, uintptr_t create_args)
   return ret;
 }
 
+unsigned long
+sbi_clone(unsigned long* eid, uintptr_t create_args){
+  unsigned long ret;
+  struct keystone_sb_snapshot_create create_args_local;
+
+  ret = copy_enclave_create_args(create_args, &create_args_local);
+
+  if (ret)
+    return ret;
+
+  ret = clone_enclave(eid, create_args_local); 
+
+  return ret; 
+}
+
+unsigned long
+sbi_snapshot(unsigned long eid){
+  unsigned long ret;
+  //Returns snapshot handle 
+  ret = create_snapshot(eid); 
+  return ret; 
+}
+
+
 unsigned long sbi_sm_destroy_enclave(unsigned long eid)
 {
   unsigned long ret;
