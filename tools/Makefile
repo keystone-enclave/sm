@@ -3,7 +3,7 @@ CFLAGS = -I../src -I../opensbi/include
 FW_PATH ?= ../../build/sm.build/platform/generic/firmware
 FW_ELF_PATH = $(FW_PATH)/fw_payload.elf
 FW_BIN_PATH = $(FW_PATH)/fw_payload.bin
-FW_SIZE = $(shell readelf --program-headers $(FW_ELF_PATH) | grep RWE | awk '{print $$2}')
+FW_SIZE = $(shell readelf --program-headers $(FW_ELF_PATH) | grep RWE | sed "s/^.*\(0x[0-9a-f]*\)[ \t]*\(RWE\).*$$/\1/")
 
 all: hashgen
 
