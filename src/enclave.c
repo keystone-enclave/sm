@@ -1,4 +1,4 @@
- //******************************************************************************
+//******************************************************************************
 // Copyright (c) 2018, The Regents of the University of California (Regents).
 // All Rights Reserved. See LICENSE for license details.
 //------------------------------------------------------------------------------
@@ -7,7 +7,6 @@
 #include "pmp.h"
 #include "page.h"
 #include "cpu.h"
-#include "string.h"
 #include "platform-hook.h"
 #include <sbi/sbi_string.h>
 #include <sbi/riscv_asm.h>
@@ -15,7 +14,7 @@
 #include <sbi/sbi_console.h>
 
 #define ENCL_MAX  16
-#define SNAPSHOT_MAX 4 
+#define SNAPSHOT_MAX 4
 
 struct enclave enclaves[ENCL_MAX];
 struct enclave_snapshot enclave_snapshots[SNAPSHOT_MAX];
@@ -401,7 +400,7 @@ unsigned long create_enclave(unsigned long *eidptr, struct keystone_sbi_create c
 
   // initialize enclave metadata
   enclaves[eid].eid = eid;
-  enclaves[eid].parent_eid = NO_PARENT; 
+  enclaves[eid].parent_eid = NO_PARENT;
 
   enclaves[eid].regions[0].pmp_rid = region;
   enclaves[eid].regions[0].type = REGION_EPM;
@@ -710,12 +709,12 @@ unsigned long clone_enclave(enclave_id *eidptr, struct keystone_sbi_clone_create
   unsigned long ret;
   int region, shared_region;
 
-  //Find and check if snapshot handle is valid 
+  //Find and check if snapshot handle is valid
   struct enclave_snapshot *snapshot = &enclave_snapshots[create_args.snapshot_id];
 
   if(!snapshot->valid){
-    ret = -1; 
-    return ret; 
+    ret = -1;
+    return ret;
   }
 
   // allocate eid
@@ -741,27 +740,27 @@ unsigned long clone_enclave(enclave_id *eidptr, struct keystone_sbi_clone_create
 
   // initialize enclave's unique metadata
   enclaves[eid].eid = eid;
-  enclaves[eid].parent_eid = cpu_get_enclave_id(); 
+  enclaves[eid].parent_eid = cpu_get_enclave_id();
 
   enclaves[eid].regions[0].pmp_rid = region;
   enclaves[eid].regions[0].type = REGION_EPM;
   enclaves[eid].regions[1].pmp_rid = shared_region;
   enclaves[eid].regions[1].type = REGION_UTM;
 
-  int region_idx = 2; 
-  // Copy any regions in snapshot to new enclave 
+  int region_idx = 2;
+  // Copy any regions in snapshot to new enclave
   for(int memid = 0; memid < ENCLAVE_REGIONS_MAX; memid++){
     if(snapshot->regions[memid].type != REGION_INVALID) {
       sbi_memcpy(&enclaves[eid].regions[region_idx++], &snapshot->regions[memid], sizeof(struct enclave_region));
     }
   }
- 
-  //Copy parameters from snapshot to enclave 
+
+  //Copy parameters from snapshot to enclave
   enclaves[eid].encl_satp = snapshot->encl_satp;
   enclaves[eid].n_thread = 0;
   sbi_memcpy(&enclaves[eid].params, &snapshot->params, sizeof(struct runtime_va_params_t ));
   sbi_memcpy(&enclaves[eid].pa_params, &snapshot->pa_params, sizeof(struct runtime_pa_params));
-  *eidptr = eid; 
+  *eidptr = eid;
 
 // unlock:
 //   spin_unlock(&encl_lock);
@@ -776,28 +775,36 @@ free_region:
 free_encl_idx:
   encl_free_eid(eid);
 error:
-  return 0; 
+  return 0;
 }
 
+<<<<<<< HEAD
 unsigned long create_snapshot(){
   unsigned long ret = -1; 
   int snapshot_idx = -1;
   struct enclave_snapshot *snapshot = NULL; 
   struct enclave *current_enclave = NULL; 
   enclave_id eid = cpu_get_enclave_id(); 
+=======
+unsigned long create_snapshot(enclave_id eid){
+  unsigned long ret = -1;
+  int snapshot_idx = -1;
+  struct enclave_snapshot *snapshot = NULL;
+  struct enclave *current_enclave = NULL;
+>>>>>>> 83fbade3e6f3f88eb2a5d7a319e000711c6ffc20
 
   //Find a free snapshot
   for(snapshot_idx = 0; snapshot_idx < SNAPSHOT_MAX; snapshot_idx++){
       if(!enclave_snapshots[snapshot_idx].valid){
-          snapshot = &enclave_snapshots[snapshot_idx]; 
-          ret = snapshot_idx; 
+          snapshot = &enclave_snapshots[snapshot_idx];
+          ret = snapshot_idx;
           break;
       }
   }
 
   //Check if an open snapshot is found
   if(ret == -1){
-    return ret; 
+    return ret;
   }
 
   current_enclave = &enclaves[eid]; 
@@ -819,5 +826,5 @@ unsigned long create_snapshot(){
   sbi_memcpy(&snapshot->params, &current_enclave->params, sizeof(struct runtime_va_params_t));
   sbi_memcpy(&snapshot->pa_params, &current_enclave->pa_params, sizeof(struct runtime_pa_params));
 
-  return ret; 
+  return ret;
 }
