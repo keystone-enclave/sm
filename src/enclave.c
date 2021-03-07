@@ -813,10 +813,23 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs){
   switch_vector_host();
   platform_switch_from_enclave(&(enclaves[eid]));
 
-  osm_pmp_set(PMP_ALL_PERM);
-
   uintptr_t interrupts = MIP_SSIP | MIP_STIP | MIP_SEIP;
   csr_write(mideleg, interrupts);
+
+  uintptr_t pending = csr_read(mip);
+
+  if (pending & MIP_MTIP) {
+    csr_clear(mip, MIP_MTIP);
+    csr_set(mip, MIP_STIP);
+  }
+  if (pending & MIP_MSIP) {
+    csr_clear(mip, MIP_MSIP);
+    csr_set(mip, MIP_SSIP);
+  }
+  if (pending & MIP_MEIP) {
+    csr_clear(mip, MIP_MEIP);
+    csr_set(mip, MIP_SEIP);
+  }
 
   /* 
     * Set current enclave's PMP regions to SNAPSHOT 
@@ -826,13 +839,13 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs){
   for(int memid = 0; memid < ENCLAVE_REGIONS_MAX; memid++){
 
     /* Copy EPM PMP to snapshot and mark it as read-only */
-    if(current_enclave->regions[memid].type == REGION_EPM){
-      current_enclave->regions[memid].type = REGION_SNAPSHOT;
-      sbi_memcpy(&snapshot->regions[memid],  &current_enclave->regions[memid], sizeof(struct enclave_region));
+    if(enclaves[eid].regions[memid].type == REGION_EPM){
+      enclaves[eid].regions[memid].type = REGION_SNAPSHOT;
+      sbi_memcpy(&snapshot->regions[memid],  &enclaves[eid].regions[memid], sizeof(struct enclave_region));
     }
     /* Switch off PMP registers*/
-    if(current_enclave->regions[memid].type != REGION_INVALID){
-      pmp_set_keystone(current_enclave->regions[memid].pmp_rid, PMP_NO_PERM);
+    if(enclaves[eid].regions[memid].type != REGION_INVALID){
+      pmp_set_keystone(enclaves[eid].regions[memid].pmp_rid, PMP_NO_PERM);
     }
   }
 
@@ -842,7 +855,7 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs){
   // 1. Free PMP region for UTM 
   region_id rid = get_enclave_region_index(eid, REGION_UTM);
   if(rid != -1)
-    pmp_region_free_atomic(current_enclave->regions[rid].pmp_rid);
+    pmp_region_free_atomic(enclaves[eid].regions[rid].pmp_rid);
 
   // 2. Zero out enclave metadata 
   enclaves[eid].encl_satp = 0;
@@ -856,7 +869,10 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs){
   // 3. Release eid of enclave 
   encl_free_eid(eid);
 
+  osm_pmp_set(PMP_ALL_PERM);
   cpu_exit_enclave_context();
+
+  regs->a1 = ret; 
 
   return SBI_ERR_SM_ENCLAVE_SNAPSHOT;
 }
