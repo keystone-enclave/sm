@@ -46,12 +46,14 @@ typedef unsigned int enclave_id;
  * UTM is the untrusted shared pages
  * OTHER is managed by some other component (e.g. platform_)
  * INVALID is an unused index
+ * SNAPSHOT means the region is read-only 
  */
 enum enclave_region_type{
   REGION_INVALID,
   REGION_EPM,
   REGION_UTM,
   REGION_OTHER,
+  REGION_SNAPSHOT,
 };
 
 struct enclave_region
@@ -140,18 +142,18 @@ unsigned long create_enclave(unsigned long *eid, struct keystone_sbi_create crea
 unsigned long destroy_enclave(enclave_id eid);
 unsigned long run_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long resume_enclave(struct sbi_trap_regs *regs, enclave_id eid);
-unsigned long clone_enclave(enclave_id *eid, struct keystone_sbi_snapshot_create create_args); 
+unsigned long clone_enclave(enclave_id *eid, struct keystone_sbi_clone_create create_args); 
 // callables from the enclave
 unsigned long exit_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave_id eid);
 unsigned long attest_enclave(uintptr_t report, uintptr_t data, uintptr_t size, enclave_id eid);
-unsigned long create_snapshot(enclave_id eid);
+unsigned long create_snapshot();
 /* attestation and virtual mapping validation */
 unsigned long validate_and_hash_enclave(struct enclave* enclave);
 // TODO: These functions are supposed to be internal functions.
 void enclave_init_metadata();
 unsigned long copy_enclave_create_args(uintptr_t src, struct keystone_sbi_create* dest);
-unsigned long copy_enclave_snapshot_args(uintptr_t src, struct keystone_sbi_snapshot_create *dest);
+unsigned long copy_enclave_clone_args(uintptr_t src, struct keystone_sbi_clone_create *dest);
 int get_enclave_region_index(enclave_id eid, enum enclave_region_type type);
 uintptr_t get_enclave_region_base(enclave_id eid, int memid);
 uintptr_t get_enclave_region_size(enclave_id eid, int memid);

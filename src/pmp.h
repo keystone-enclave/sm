@@ -22,6 +22,7 @@ enum pmp_priority {
 };
 
 #define PMP_ALL_PERM  (PMP_W | PMP_X | PMP_R)
+#define PMP_READ_PERM (PMP_X | PMP_R)
 #define PMP_NO_PERM   0
 
 #if __riscv_xlen == 64

@@ -20,6 +20,7 @@
 #define SBI_SM_DESTROY_ENCLAVE    2002
 #define SBI_SM_RUN_ENCLAVE        2003
 #define SBI_SM_RESUME_ENCLAVE     2005
+#define SBI_SM_CLONE_ENCLAVE      2006
 #define FID_RANGE_HOST            2999
 /* 3000-3999 are called by enclave */
 #define SBI_SM_RANDOM             3001
@@ -28,7 +29,6 @@
 #define SBI_SM_STOP_ENCLAVE       3004
 #define SBI_SM_EXIT_ENCLAVE       3006
 #define SBI_SM_SNAPSHOT           3007
-#define SBI_SM_CLONE_ENCLAVE      3008
 #define FID_RANGE_ENCLAVE         3999
 /* 4000-4999 are experimental */
 #define SBI_SM_CALL_PLUGIN        4000
@@ -99,7 +99,7 @@ struct runtime_pa_params
   uintptr_t free_base;
 };
 
-struct keystone_sbi_snapshot_create
+struct keystone_sbi_clone_create
 {
   struct keystone_sbi_pregion epm_region;
   struct keystone_sbi_pregion utm_region;

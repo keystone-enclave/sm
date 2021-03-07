@@ -36,7 +36,7 @@ unsigned long
 sbi_clone(unsigned long eidptr, uintptr_t create_args);
 
 unsigned long
-sbi_snapshot(unsigned long eid);
+sbi_snapshot();
 
 unsigned long
 sbi_sm_random();
