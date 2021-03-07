@@ -147,7 +147,7 @@ unsigned long clone_enclave(enclave_id *eid, struct keystone_sbi_clone_create cr
 unsigned long exit_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave_id eid);
 unsigned long attest_enclave(uintptr_t report, uintptr_t data, uintptr_t size, enclave_id eid);
-unsigned long create_snapshot();
+unsigned long create_snapshot(struct sbi_trap_regs *regs);
 /* attestation and virtual mapping validation */
 unsigned long validate_and_hash_enclave(struct enclave* enclave);
 // TODO: These functions are supposed to be internal functions.

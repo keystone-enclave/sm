@@ -73,7 +73,7 @@ static int sbi_ecall_keystone_enclave_handler(unsigned long extid, unsigned long
       retval = sbi_clone(regs->a0, regs->a1);
       break;
     case SBI_SM_SNAPSHOT:
-      retval = sbi_snapshot();
+      retval = sbi_snapshot((struct sbi_trap_regs*) regs);
       break;
     default:
       retval = SBI_ERR_SM_NOT_IMPLEMENTED;

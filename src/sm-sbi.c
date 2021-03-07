@@ -42,11 +42,11 @@ sbi_clone(unsigned long eidptr, uintptr_t create_args){
 }
 
 unsigned long
-sbi_snapshot(){
+sbi_snapshot(struct sbi_trap_regs *regs){
   unsigned long ret;
 
   //Returns snapshot handle 
-  ret = create_snapshot(); 
+  ret = create_snapshot(regs); 
   return ret; 
 }
 
