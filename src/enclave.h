@@ -31,6 +31,7 @@ typedef enum {
   FRESH,
   STOPPED,
   RUNNING,
+  SNAPSHOT,
 } enclave_state;
 
 /* Enclave stop reasons requested */
@@ -142,7 +143,7 @@ unsigned long create_enclave(unsigned long *eid, struct keystone_sbi_create crea
 unsigned long destroy_enclave(enclave_id eid);
 unsigned long run_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long resume_enclave(struct sbi_trap_regs *regs, enclave_id eid);
-unsigned long clone_enclave(enclave_id *eid, struct keystone_sbi_clone_create create_args); 
+unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_create create_args);
 // callables from the enclave
 unsigned long exit_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave_id eid);

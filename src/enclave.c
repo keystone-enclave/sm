@@ -83,7 +83,7 @@ static inline void context_switch_to_enclave(struct sbi_trap_regs* regs,
   int memid;
   for(memid=0; memid < ENCLAVE_REGIONS_MAX; memid++) {
     if(enclaves[eid].regions[memid].type == REGION_SNAPSHOT){
-      pmp_set_keystone(enclaves[eid].regions[memid].pmp_rid, PMP_READ_PERM);
+      pmp_set_keystone(enclaves[eid].regions[memid].pmp_rid, PMP_ALL_PERM);
     } else if(enclaves[eid].regions[memid].type != REGION_INVALID) {
       pmp_set_keystone(enclaves[eid].regions[memid].pmp_rid, PMP_ALL_PERM);
     }
@@ -256,7 +256,7 @@ unsigned long copy_enclave_create_args(uintptr_t src, struct keystone_sbi_create
 
 unsigned long copy_enclave_clone_args(uintptr_t src, struct keystone_sbi_clone_create *dest){
 
-  int region_overlap = copy_to_sm(dest, src, sizeof(struct keystone_sbi_create));
+  int region_overlap = copy_to_sm(dest, src, sizeof(struct keystone_sbi_clone_create));
 
   if (region_overlap)
     return SBI_ERR_SM_ENCLAVE_REGION_OVERLAPS;
@@ -697,7 +697,16 @@ unsigned long get_sealing_key(uintptr_t sealing_key, uintptr_t key_ident,
   return SBI_ERR_SM_ENCLAVE_SUCCESS;
 }
 
-unsigned long clone_enclave(enclave_id *eidptr, struct keystone_sbi_clone_create create_args){
+unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_create create_args){
+
+  enclave_id snapshot_eid = create_args.snapshot_eid; 
+  enclave_id eid = -1; 
+  int region, shared_region;
+
+  /* Check if eid */
+  if(!(ENCLAVE_EXISTS(snapshot_eid)) || !(enclaves[snapshot_eid].state == SNAPSHOT)){
+    return -1; 
+  }
 
   /* EPM and UTM parameters */
   uintptr_t base = create_args.epm_region.paddr;
@@ -705,20 +714,8 @@ unsigned long clone_enclave(enclave_id *eidptr, struct keystone_sbi_clone_create
   uintptr_t utbase = create_args.utm_region.paddr;
   size_t utsize = create_args.utm_region.size;
 
-  enclave_id eid;
-  unsigned long ret;
-  int region, shared_region;
-
-  //Find and check if snapshot handle is valid
-  struct enclave_snapshot *snapshot = &enclave_snapshots[create_args.snapshot_id];
-
-  if(!snapshot->valid){
-    ret = -1;
-    return ret;
-  }
-
   // allocate eid
-  ret = SBI_ERR_SM_ENCLAVE_NO_FREE_RESOURCE;
+  unsigned long ret = SBI_ERR_SM_ENCLAVE_NO_FREE_RESOURCE;
   if (encl_alloc_eid(&eid) != SBI_ERR_SM_ENCLAVE_SUCCESS)
     goto error;
 
@@ -740,7 +737,7 @@ unsigned long clone_enclave(enclave_id *eidptr, struct keystone_sbi_clone_create
 
   // initialize enclave's unique metadata
   enclaves[eid].eid = eid;
-  enclaves[eid].parent_eid = cpu_get_enclave_id();
+  enclaves[eid].parent_eid = snapshot_eid;
 
   enclaves[eid].regions[0].pmp_rid = region;
   enclaves[eid].regions[0].type = REGION_EPM;
@@ -750,24 +747,29 @@ unsigned long clone_enclave(enclave_id *eidptr, struct keystone_sbi_clone_create
   int region_idx = 2;
   // Copy any regions in snapshot to new enclave
   for(int memid = 0; memid < ENCLAVE_REGIONS_MAX; memid++){
-    if(snapshot->regions[memid].type != REGION_INVALID) {
-      sbi_memcpy(&enclaves[eid].regions[region_idx++], &snapshot->regions[memid], sizeof(struct enclave_region));
+    if(enclaves[snapshot_eid].regions[memid].type == REGION_SNAPSHOT) {
+      sbi_memcpy(&enclaves[eid].regions[region_idx++], &enclaves[snapshot_eid].regions[memid], sizeof(struct enclave_region));
     }
   }
 
   //Copy parameters from snapshot to enclave
-  enclaves[eid].encl_satp = snapshot->encl_satp;
+  enclaves[eid].encl_satp = enclaves[snapshot_eid].encl_satp;
   enclaves[eid].n_thread = 0;
-  sbi_memcpy(&enclaves[eid].params, &snapshot->params, sizeof(struct runtime_va_params_t ));
-  sbi_memcpy(&enclaves[eid].pa_params, &snapshot->pa_params, sizeof(struct runtime_pa_params));
-  *eidptr = eid;
 
-// unlock:
-//   spin_unlock(&encl_lock);
-// free_platform:
-  platform_destroy_enclave(&enclaves[eid]);
-// unset_region:
-//   pmp_unset_global(region);
+  sbi_memcpy(&enclaves[eid].threads[0], &enclaves[snapshot_eid].threads[0], sizeof(struct thread_state));
+  sbi_memcpy(&enclaves[eid].params, &enclaves[snapshot_eid].params, sizeof(struct runtime_va_params_t ));
+  sbi_memcpy(&enclaves[eid].pa_params, &enclaves[snapshot_eid].pa_params, sizeof(struct runtime_pa_params));
+  
+  struct sbi_snapshot_ret *snapshot_ret = (struct sbi_snapshot_ret *) enclaves[eid].threads->prev_state.a0;
+
+  struct sbi_snapshot_ret args = {utbase, utsize};
+  sbi_memcpy(snapshot_ret, &args, sizeof(struct sbi_snapshot_ret));
+
+  enclaves[eid].state = RUNNING;
+  *eidptr = eid;
+  goto error; 
+  
+
 free_shared_region:
   pmp_region_free_atomic(shared_region);
 free_region:
@@ -775,39 +777,17 @@ free_region:
 free_encl_idx:
   encl_free_eid(eid);
 error:
-  return 0;
+  return ret;
 }
 
 unsigned long create_snapshot(struct sbi_trap_regs *regs){
-  unsigned long ret = -1; 
-  int snapshot_idx = -1;
-  struct enclave_snapshot *snapshot = NULL; 
-  struct enclave *current_enclave = NULL; 
   enclave_id eid = cpu_get_enclave_id(); 
 
-  //Find a free snapshot
-  for(snapshot_idx = 0; snapshot_idx < SNAPSHOT_MAX; snapshot_idx++){
-      if(!enclave_snapshots[snapshot_idx].valid){
-          snapshot = &enclave_snapshots[snapshot_idx];
-          ret = snapshot_idx;
-          break;
-      }
-  }
-
-  //Check if an open snapshot is found
-  if(ret == -1){
-    return ret;
-  }
-
-  current_enclave = &enclaves[eid]; 
-  snapshot->eid = eid; 
-  snapshot->valid = 1; 
-  snapshot->encl_satp = current_enclave->encl_satp;
+  //Change enclave state to SNAPSHOT
+  enclaves[eid].state = SNAPSHOT; 
 
   /* Switch back to host and copy thread state to snapshot*/
-  swap_prev_state(&enclaves[eid].threads[0], regs, 0);
-  sbi_memcpy(&snapshot->snapshot_state, &enclaves[eid].threads[0], sizeof(struct thread_state));
- 
+  swap_prev_state(&enclaves[eid].threads[0], regs, 0); 
   swap_prev_mepc(&enclaves[eid].threads[0], regs, regs->mepc);
   swap_prev_mstatus(&enclaves[eid].threads[0], regs, regs->mstatus);
   switch_vector_host();
@@ -838,41 +818,25 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs){
   */
   for(int memid = 0; memid < ENCLAVE_REGIONS_MAX; memid++){
 
-    /* Copy EPM PMP to snapshot and mark it as read-only */
-    if(enclaves[eid].regions[memid].type == REGION_EPM){
-      enclaves[eid].regions[memid].type = REGION_SNAPSHOT;
-      sbi_memcpy(&snapshot->regions[memid],  &enclaves[eid].regions[memid], sizeof(struct enclave_region));
-    }
     /* Switch off PMP registers*/
     if(enclaves[eid].regions[memid].type != REGION_INVALID){
       pmp_set_keystone(enclaves[eid].regions[memid].pmp_rid, PMP_NO_PERM);
     }
+
+    /* Copy EPM PMP to snapshot and mark it as read-only */
+    if(enclaves[eid].regions[memid].type == REGION_EPM){
+      enclaves[eid].regions[memid].type = REGION_SNAPSHOT;
+    }
+
+    if(enclaves[eid].regions[memid].type == REGION_UTM){
+      pmp_region_free_atomic(enclaves[eid].regions[memid].pmp_rid);
+      enclaves[eid].regions[memid].type = REGION_INVALID;
+    }
   }
-
-  sbi_memcpy(&snapshot->params, &current_enclave->params, sizeof(struct runtime_va_params_t));
-  sbi_memcpy(&snapshot->pa_params, &current_enclave->pa_params, sizeof(struct runtime_pa_params));
-
-  // 1. Free PMP region for UTM 
-  region_id rid = get_enclave_region_index(eid, REGION_UTM);
-  if(rid != -1)
-    pmp_region_free_atomic(enclaves[eid].regions[rid].pmp_rid);
-
-  // 2. Zero out enclave metadata 
-  enclaves[eid].encl_satp = 0;
-  enclaves[eid].n_thread = 0;
-  enclaves[eid].params = (struct runtime_va_params_t) {0};
-  enclaves[eid].pa_params = (struct runtime_pa_params) {0};
-  for(int i=0; i < ENCLAVE_REGIONS_MAX; i++){
-    enclaves[eid].regions[i].type = REGION_INVALID;
-  }
-
-  // 3. Release eid of enclave 
-  encl_free_eid(eid);
 
   osm_pmp_set(PMP_ALL_PERM);
   cpu_exit_enclave_context();
 
-  regs->a1 = ret; 
-
+  regs->a1 = eid; 
   return SBI_ERR_SM_ENCLAVE_SNAPSHOT;
 }

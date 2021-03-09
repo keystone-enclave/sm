@@ -27,7 +27,7 @@ unsigned long sbi_sm_create_enclave(unsigned long* eid, uintptr_t create_args)
 }
 
 unsigned long
-sbi_clone(unsigned long eidptr, uintptr_t create_args){
+sbi_clone(unsigned long* eid, uintptr_t create_args){
   unsigned long ret;
   struct keystone_sbi_clone_create create_args_local;
 
@@ -36,7 +36,7 @@ sbi_clone(unsigned long eidptr, uintptr_t create_args){
   if (ret)
     return ret;
 
-  ret = clone_enclave ((enclave_id *) eidptr, create_args_local); 
+  ret = clone_enclave (eid, create_args_local); 
 
   return ret; 
 }

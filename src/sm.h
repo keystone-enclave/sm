@@ -104,8 +104,13 @@ struct keystone_sbi_clone_create
 {
   struct keystone_sbi_pregion epm_region;
   struct keystone_sbi_pregion utm_region;
+  unsigned long snapshot_eid; 
   unsigned int* eid_pptr;
-  unsigned int snapshot_id;
+};
+
+struct sbi_snapshot_ret {
+    uintptr_t utm_paddr;
+    uintptr_t utm_size; 
 };
 
 struct keystone_sbi_create
