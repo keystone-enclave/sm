@@ -111,7 +111,10 @@ struct keystone_sbi_clone_create
 struct sbi_snapshot_ret {
     uintptr_t utm_paddr;
     uintptr_t utm_size; 
+    uintptr_t dram_base;
+    uintptr_t dram_size; 
 };
+
 
 struct keystone_sbi_create
 {

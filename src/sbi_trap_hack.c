@@ -135,6 +135,9 @@ void sbi_trap_handler_keystone_enclave(struct sbi_trap_regs *regs)
 		rc  = sbi_ecall_handler(regs);
 		msg = "ecall handler failed";
 		break;
+	case CAUSE_STORE_ACCESS:
+		rc = handle_copy_write(mtval);
+		break;
 	default:
 		/* If the trap came from S or U mode, redirect it there */
 		trap.epc = regs->mepc;
