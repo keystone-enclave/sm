@@ -7,6 +7,7 @@
 #include "pmp.h"
 #include "page.h"
 #include "cpu.h"
+#include "debug.h"
 #include "platform-hook.h"
 #include <sbi/sbi_string.h>
 #include <sbi/riscv_asm.h>
@@ -14,10 +15,8 @@
 #include <sbi/sbi_console.h>
 
 #define ENCL_MAX  16
-#define SNAPSHOT_MAX 4
 
 struct enclave enclaves[ENCL_MAX];
-struct enclave_snapshot enclave_snapshots[SNAPSHOT_MAX];
 
 #define ENCLAVE_EXISTS(eid) (eid >= 0 && eid < ENCL_MAX && enclaves[eid].state >= 0)
 
@@ -55,12 +54,12 @@ static inline void context_switch_to_enclave(struct sbi_trap_regs* regs,
 #ifdef RUNTIME_FAULT
   uintptr_t exceptions = (1U << CAUSE_MISALIGNED_FETCH) | (1U << CAUSE_BREAKPOINT) |
 		     (1U << CAUSE_USER_ECALL);
-  
+
   exceptions |= (1U << CAUSE_FETCH_PAGE_FAULT) |
 			      (1U << CAUSE_LOAD_PAGE_FAULT) |
 			      (1U << CAUSE_STORE_PAGE_FAULT);
 
-  exceptions |= (1U << CAUSE_STORE_ACCESS); 
+  exceptions |= (1U << CAUSE_STORE_ACCESS);
 
   csr_write(medeleg, exceptions);
 #endif
@@ -97,7 +96,7 @@ static inline void context_switch_to_enclave(struct sbi_trap_regs* regs,
   for(memid=0; memid < ENCLAVE_REGIONS_MAX; memid++) {
     if(enclaves[eid].regions[memid].type == REGION_SNAPSHOT){
       pmp_set_keystone(enclaves[eid].regions[memid].pmp_rid, PMP_READ_PERM);
-      continue; 
+      continue;
     } else if(enclaves[eid].regions[memid].type != REGION_INVALID) {
       pmp_set_keystone(enclaves[eid].regions[memid].pmp_rid, PMP_ALL_PERM);
     }
@@ -127,7 +126,7 @@ static inline void context_switch_to_host(struct sbi_trap_regs *regs,
 #ifdef RUNTIME_FAULT
    uintptr_t exceptions = (1U << CAUSE_MISALIGNED_FETCH) | (1U << CAUSE_BREAKPOINT) |
 		     (1U << CAUSE_USER_ECALL);
-  
+
   exceptions |= (1U << CAUSE_FETCH_PAGE_FAULT) |
 			      (1U << CAUSE_LOAD_PAGE_FAULT) |
 			      (1U << CAUSE_STORE_PAGE_FAULT);
@@ -426,7 +425,7 @@ unsigned long create_enclave(unsigned long *eidptr, struct keystone_sbi_create c
 
   // initialize enclave metadata
   enclaves[eid].eid = eid;
-  enclaves[eid].parent_eid = NO_PARENT;
+  enclaves[eid].snapshot_eid = NO_PARENT;
 
   enclaves[eid].regions[0].pmp_rid = region;
   enclaves[eid].regions[0].type = REGION_EPM;
@@ -442,7 +441,7 @@ unsigned long create_enclave(unsigned long *eidptr, struct keystone_sbi_create c
   enclaves[eid].pa_params = pa_params;
 
   //Enclave created without clone have no free list
-  enclaves[eid].free_list = -1; 
+  enclaves[eid].free_list = -1;
 
   /* Init enclave state (regs etc) */
   clean_state(&enclaves[eid].threads[0]);
@@ -543,6 +542,8 @@ unsigned long destroy_enclave(enclave_id eid)
     enclaves[eid].regions[i].type = REGION_INVALID;
   }
 
+  // clean metadata
+  sbi_memset((void*) &enclaves[eid], 0, sizeof(struct enclave));
   // 3. release eid
   encl_free_eid(eid);
 
@@ -728,13 +729,18 @@ unsigned long get_sealing_key(uintptr_t sealing_key, uintptr_t key_ident,
 
 unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_create create_args){
 
-  enclave_id snapshot_eid = create_args.snapshot_eid; 
-  enclave_id eid = -1; 
+  enclave_id parent_eid = create_args.snapshot_eid;
+  enclave_id snapshot_eid;
+  enclave_id eid = -1;
   int region, shared_region;
 
   /* Check if eid */
-  if(!(ENCLAVE_EXISTS(snapshot_eid)) || !(enclaves[snapshot_eid].state == SNAPSHOT)){
-    return -1; 
+  if(!(ENCLAVE_EXISTS(parent_eid)) || !(enclaves[parent_eid].state == SNAPSHOT)){
+    return -1;
+  }
+
+  if(enclaves[parent_eid].state == SNAPSHOT) {
+    snapshot_eid = parent_eid;
   }
 
   /* EPM and UTM parameters */
@@ -766,10 +772,10 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
 
   // initialize enclave's unique metadata
   enclaves[eid].eid = eid;
-  enclaves[eid].parent_eid = snapshot_eid;
+  enclaves[eid].snapshot_eid = parent_eid;
 
-  //Initialize enclave free list one page after base 
-  enclaves[eid].free_list = base + PAGE_SIZE; 
+  //Initialize enclave free list
+  enclaves[eid].free_list = base;
 
   enclaves[eid].regions[0].pmp_rid = region;
   enclaves[eid].regions[0].type = REGION_EPM;
@@ -785,15 +791,9 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
   }
 
   //Copy parameters from snapshot to enclave
-
-#if __riscv_xlen == 32
-  enclaves[eid].encl_satp = ((base >> RISCV_PGSHIFT) | (SATP_MODE_SV32 << HGATP_MODE_SHIFT));
-#else
-  enclaves[eid].encl_satp = ((base >> RISCV_PGSHIFT) | (SATP_MODE_SV39 << HGATP_MODE_SHIFT));
-#endif
-
+  enclaves[eid].encl_satp = enclaves[snapshot_eid].encl_satp;
   // Copy the page table (they should both be the same page)
-  sbi_memcpy((void *) base, (void *) enclaves[snapshot_eid].pa_params.dram_base, PAGE_SIZE);
+  // sbi_memcpy((void *) base, (void *) enclaves[snapshot_eid].pa_params.dram_base, PAGE_SIZE);
   enclaves[eid].n_thread = 0;
 
   sbi_memcpy(&enclaves[eid].threads[0], &enclaves[snapshot_eid].threads[0], sizeof(struct thread_state));
@@ -802,7 +802,7 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
 
   enclaves[eid].pa_params.dram_base = base;
   enclaves[eid].pa_params.dram_size = size;
-  enclaves[eid].threads[0].prev_csrs.satp = enclaves[eid].encl_satp; 
+  enclaves[eid].threads[0].prev_csrs.satp = enclaves[eid].encl_satp;
 
   //Copy arguments prepared by snapshot
   struct sbi_snapshot_ret *snapshot_ret = (struct sbi_snapshot_ret *) enclaves[eid].threads->prev_state.a0;
@@ -811,8 +811,8 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
 
   enclaves[eid].state = RUNNING;
   *eidptr = eid;
-  goto error; 
-  
+  goto error;
+
 
 free_shared_region:
   pmp_region_free_atomic(shared_region);
@@ -824,14 +824,13 @@ error:
   return ret;
 }
 
-unsigned long create_snapshot(struct sbi_trap_regs *regs){
-  enclave_id eid = cpu_get_enclave_id(); 
-
+unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid)
+{
   //Change enclave state to SNAPSHOT
-  enclaves[eid].state = SNAPSHOT; 
+  enclaves[eid].state = SNAPSHOT;
 
   /* Switch back to host and copy thread state to snapshot*/
-  swap_prev_state(&enclaves[eid].threads[0], regs, 0); 
+  swap_prev_state(&enclaves[eid].threads[0], regs, 0);
   swap_prev_mepc(&enclaves[eid].threads[0], regs, regs->mepc);
   swap_prev_mstatus(&enclaves[eid].threads[0], regs, regs->mstatus);
   switch_vector_host();
@@ -855,8 +854,8 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs){
     csr_set(mip, MIP_SEIP);
   }
 
-  /* 
-    * Set current enclave's PMP regions to SNAPSHOT 
+  /*
+    * Set current enclave's PMP regions to SNAPSHOT
     * Copy any EPM regions to the snapshot (we don't care about UTM)
     * Upon context switch to enclave, PMP will be set to READ-ONLY
   */
@@ -881,7 +880,7 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs){
   osm_pmp_set(PMP_ALL_PERM);
   cpu_exit_enclave_context();
 
-  regs->a1 = eid; 
+  regs->a1 = eid;
   return SBI_ERR_SM_ENCLAVE_SNAPSHOT;
 }
 
@@ -897,14 +896,14 @@ static inline uintptr_t pte_create(uintptr_t ppn, int type)
 
 uintptr_t *walk(uintptr_t *page_table, uintptr_t fault_addr, int level){
 
-  int idx = RISCV_GET_PT_INDEX(fault_addr, level); 
+  int idx = RISCV_GET_PT_INDEX(fault_addr, level);
   uintptr_t pte = page_table[idx];
   uintptr_t *new_page_table = (uintptr_t *) ((pte >> PTE_PPN_SHIFT) << RISCV_PAGE_BITS);
 
   if(level == 3){
     return &page_table[idx];
   } else{
-    return walk(new_page_table, fault_addr, level + 1); 
+    return walk(new_page_table, fault_addr, level + 1);
   }
 }
 
@@ -912,23 +911,24 @@ unsigned long handle_copy_write(uintptr_t fault_addr){
 
   enclave_id ceid = cpu_get_enclave_id();
   uintptr_t *root_page_table = (uintptr_t *) (enclaves[ceid].encl_satp << RISCV_PGSHIFT);
-  uintptr_t *pte = walk(root_page_table, fault_addr, 1); 
+  uintptr_t *pte = walk(root_page_table, fault_addr, 1);
 
   //Physical address of the fault_addr
   uintptr_t fault_paddr = ((*pte >> PTE_PPN_SHIFT) << RISCV_PAGE_BITS);
 
-  //Check if the free list exceeds allocated EPM size 
+  //Check if the free list exceeds allocated EPM size
   if(enclaves[ceid].free_list >= enclaves[ceid].pa_params.dram_base + enclaves[ceid].pa_params.dram_size){
     /* TODO: Probably want to handle this more gracefully... */
+    DEBUG("cloned enclave exceeds free memory");
     return 1;
   }
 
-  uintptr_t child_paddr = enclaves[ceid].free_list; 
-  enclaves[ceid].free_list += PAGE_SIZE; 
+  uintptr_t child_paddr = enclaves[ceid].free_list;
+  enclaves[ceid].free_list += PAGE_SIZE;
 
-  *pte = (ppn(child_paddr) << PTE_PPN_SHIFT) | (*pte & PTE_FLAG_MASK) | PTE_C; 
+  *pte = (ppn(child_paddr) << PTE_PPN_SHIFT) | (*pte & PTE_FLAG_MASK) | PTE_C;
 
   sbi_memcpy((void *) child_paddr,  (void *) fault_paddr, PAGE_SIZE);
   sbi_printf("[sm] Page fault on 0x%p: Copied fault_paddr: 0x%p to child_paddr: 0x%p\n",  (void *) fault_addr, (void *) fault_paddr, (void *) child_paddr );
-  return 0; 
+  return 0;
 }
