@@ -517,7 +517,8 @@ unsigned long destroy_enclave(enclave_id eid)
   region_id rid;
   for(i = 0; i < ENCLAVE_REGIONS_MAX; i++){
     if(enclaves[eid].regions[i].type == REGION_INVALID ||
-       enclaves[eid].regions[i].type == REGION_UTM)
+       enclaves[eid].regions[i].type == REGION_UTM ||
+       enclaves[eid].regions[i].type == REGION_SNAPSHOT)
       continue;
     //1.a Clear all pages
     rid = enclaves[eid].regions[i].pmp_rid;
