@@ -51,19 +51,6 @@ static inline void context_switch_to_enclave(struct sbi_trap_regs* regs,
   uintptr_t interrupts = 0;
   csr_write(mideleg, interrupts);
 
-#ifdef RUNTIME_FAULT
-  uintptr_t exceptions = (1U << CAUSE_MISALIGNED_FETCH) | (1U << CAUSE_BREAKPOINT) |
-		     (1U << CAUSE_USER_ECALL);
-
-  exceptions |= (1U << CAUSE_FETCH_PAGE_FAULT) |
-			      (1U << CAUSE_LOAD_PAGE_FAULT) |
-			      (1U << CAUSE_STORE_PAGE_FAULT);
-
-  exceptions |= (1U << CAUSE_STORE_ACCESS);
-
-  csr_write(medeleg, exceptions);
-#endif
-
   if(load_parameters) {
     // passing parameters for a first run
     csr_write(sepc, (uintptr_t) enclaves[eid].params.user_entry);
@@ -122,18 +109,6 @@ static inline void context_switch_to_host(struct sbi_trap_regs *regs,
 
   uintptr_t interrupts = MIP_SSIP | MIP_STIP | MIP_SEIP;
   csr_write(mideleg, interrupts);
-
-#ifdef RUNTIME_FAULT
-   uintptr_t exceptions = (1U << CAUSE_MISALIGNED_FETCH) | (1U << CAUSE_BREAKPOINT) |
-		     (1U << CAUSE_USER_ECALL);
-
-  exceptions |= (1U << CAUSE_FETCH_PAGE_FAULT) |
-			      (1U << CAUSE_LOAD_PAGE_FAULT) |
-			      (1U << CAUSE_STORE_PAGE_FAULT);
-
-  csr_write(medeleg, exceptions);
-#endif
-
 
   /* restore host context */
   swap_prev_state(&enclaves[eid].threads[0], regs, return_on_resume);
@@ -830,31 +805,6 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid)
   //Change enclave state to SNAPSHOT
   enclaves[eid].state = SNAPSHOT;
 
-  /* Switch back to host and copy thread state to snapshot*/
-  swap_prev_state(&enclaves[eid].threads[0], regs, 0);
-  swap_prev_mepc(&enclaves[eid].threads[0], regs, regs->mepc);
-  swap_prev_mstatus(&enclaves[eid].threads[0], regs, regs->mstatus);
-  switch_vector_host();
-  platform_switch_from_enclave(&(enclaves[eid]));
-
-  uintptr_t interrupts = MIP_SSIP | MIP_STIP | MIP_SEIP;
-  csr_write(mideleg, interrupts);
-
-  uintptr_t pending = csr_read(mip);
-
-  if (pending & MIP_MTIP) {
-    csr_clear(mip, MIP_MTIP);
-    csr_set(mip, MIP_STIP);
-  }
-  if (pending & MIP_MSIP) {
-    csr_clear(mip, MIP_MSIP);
-    csr_set(mip, MIP_SSIP);
-  }
-  if (pending & MIP_MEIP) {
-    csr_clear(mip, MIP_MEIP);
-    csr_set(mip, MIP_SEIP);
-  }
-
   /*
     * Set current enclave's PMP regions to SNAPSHOT
     * Copy any EPM regions to the snapshot (we don't care about UTM)
@@ -878,10 +828,8 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid)
     }
   }
 
-  osm_pmp_set(PMP_ALL_PERM);
-  cpu_exit_enclave_context();
+  context_switch_to_host(regs, eid, 1);
 
-  regs->a1 = eid;
   return SBI_ERR_SM_ENCLAVE_SNAPSHOT;
 }
 
