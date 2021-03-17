@@ -861,11 +861,19 @@ uintptr_t *walk(uintptr_t *page_table, uintptr_t fault_addr, int level){
 unsigned long handle_copy_write(uintptr_t fault_addr){
 
   enclave_id ceid = cpu_get_enclave_id();
+  enclave_id peid = enclaves[ceid].snapshot_eid;
+
   uintptr_t *root_page_table = (uintptr_t *) (enclaves[ceid].encl_satp << RISCV_PGSHIFT);
   uintptr_t *pte = walk(root_page_table, fault_addr, 1);
 
   //Physical address of the fault_addr
   uintptr_t fault_paddr = ((*pte >> PTE_PPN_SHIFT) << RISCV_PAGE_BITS);
+
+  //Check if the fault address is within the parent enclave's memory 
+  if(fault_paddr < enclaves[peid].pa_params.dram_base || 
+  fault_paddr >= enclaves[peid].pa_params.dram_base + enclaves[peid].pa_params.dram_size){
+    return 1;
+  }
 
   //Check if the free list exceeds allocated EPM size
   if(enclaves[ceid].free_list >= enclaves[ceid].pa_params.dram_base + enclaves[ceid].pa_params.dram_size){
