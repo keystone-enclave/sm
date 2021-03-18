@@ -9,6 +9,7 @@
 #include "cpu.h"
 #include "debug.h"
 #include "platform-hook.h"
+#include "assert.h"
 #include <sbi/sbi_string.h>
 #include <sbi/riscv_asm.h>
 #include <sbi/riscv_locks.h>
@@ -81,11 +82,18 @@ static inline void context_switch_to_enclave(struct sbi_trap_regs* regs,
   osm_pmp_set(PMP_NO_PERM);
   int memid;
   for(memid=0; memid < ENCLAVE_REGIONS_MAX; memid++) {
-    if(enclaves[eid].regions[memid].type == REGION_SNAPSHOT){
-      pmp_set_keystone(enclaves[eid].regions[memid].pmp_rid, PMP_READ_PERM);
-      continue;
-    } else if(enclaves[eid].regions[memid].type != REGION_INVALID) {
+    if(enclaves[eid].regions[memid].type != REGION_INVALID) {
       pmp_set_keystone(enclaves[eid].regions[memid].pmp_rid, PMP_ALL_PERM);
+    }
+  }
+  /* additional allow for serverless TEE research */
+  if (enclaves[eid].snapshot_eid != NO_PARENT)
+  {
+    enclave_id snapshot_eid = enclaves[eid].snapshot_eid;
+    for (memid = 0; memid < ENCLAVE_REGIONS_MAX; memid++) {
+      if (enclaves[snapshot_eid].regions[memid].type == REGION_SNAPSHOT) {
+        pmp_set_keystone(enclaves[snapshot_eid].regions[memid].pmp_rid, PMP_READ_PERM);
+      }
     }
   }
 
@@ -105,6 +113,17 @@ static inline void context_switch_to_host(struct sbi_trap_regs *regs,
       pmp_set_keystone(enclaves[eid].regions[memid].pmp_rid, PMP_NO_PERM);
     }
   }
+  /* additional allow for serverless TEE research */
+  if (enclaves[eid].snapshot_eid != NO_PARENT)
+  {
+    enclave_id snapshot_eid = enclaves[eid].snapshot_eid;
+    for (memid = 0; memid < ENCLAVE_REGIONS_MAX; memid++) {
+      if (enclaves[snapshot_eid].regions[memid].type == REGION_SNAPSHOT) {
+        pmp_set_keystone(enclaves[snapshot_eid].regions[memid].pmp_rid, PMP_NO_PERM);
+      }
+    }
+  }
+
   osm_pmp_set(PMP_ALL_PERM);
 
   uintptr_t interrupts = MIP_SSIP | MIP_STIP | MIP_SEIP;
@@ -401,7 +420,7 @@ unsigned long create_enclave(unsigned long *eidptr, struct keystone_sbi_create c
   // initialize enclave metadata
   enclaves[eid].eid = eid;
   enclaves[eid].snapshot_eid = NO_PARENT;
-
+  enclaves[eid].ref_count = 0;
   enclaves[eid].regions[0].pmp_rid = region;
   enclaves[eid].regions[0].type = REGION_EPM;
   enclaves[eid].regions[1].pmp_rid = shared_region;
@@ -468,7 +487,8 @@ unsigned long destroy_enclave(enclave_id eid)
 
   spin_lock(&encl_lock);
   destroyable = (ENCLAVE_EXISTS(eid)
-                 && enclaves[eid].state <= STOPPED);
+                 && enclaves[eid].state <= STOPPED
+                 && enclaves[eid].ref_count == 0);
   /* update the enclave state first so that
    * no SM can run the enclave any longer */
   if(destroyable)
@@ -491,10 +511,7 @@ unsigned long destroy_enclave(enclave_id eid)
   region_id rid;
   for(i = 0; i < ENCLAVE_REGIONS_MAX; i++){
     if(enclaves[eid].regions[i].type == REGION_INVALID ||
-       enclaves[eid].regions[i].type == REGION_UTM 
-       // TODO -- Free snapshot region is ref count == 0 
-       //|| enclaves[eid].regions[i].type == REGION_SNAPSHOT
-       )
+       enclaves[eid].regions[i].type == REGION_UTM)
       continue;
     //1.a Clear all pages
     rid = enclaves[eid].regions[i].pmp_rid;
@@ -512,10 +529,6 @@ unsigned long destroy_enclave(enclave_id eid)
   if(rid != -1)
     pmp_region_free_atomic(enclaves[eid].regions[rid].pmp_rid);
 
-  enclaves[eid].encl_satp = 0;
-  enclaves[eid].n_thread = 0;
-  enclaves[eid].params = (struct runtime_va_params_t) {0};
-  enclaves[eid].pa_params = (struct runtime_pa_params) {0};
   for(i=0; i < ENCLAVE_REGIONS_MAX; i++){
     enclaves[eid].regions[i].type = REGION_INVALID;
   }
@@ -713,13 +726,33 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
   int region, shared_region;
 
   /* Check if eid */
-  if(!(ENCLAVE_EXISTS(parent_eid)) || !(enclaves[parent_eid].state == SNAPSHOT)){
-    return -1;
+  if(!(ENCLAVE_EXISTS(parent_eid))) {
+    return SBI_ERR_SM_ENCLAVE_INVALID_ID;
   }
 
+  // case 1: if parent enclave is snapshot
   if(enclaves[parent_eid].state == SNAPSHOT) {
     snapshot_eid = parent_eid;
   }
+  // case 2: if parent enclave is not a snapshot
+  else {
+    // case 2 - i: if parent enclave has snapshot
+    if (enclaves[parent_eid].snapshot_eid != NO_PARENT)
+    {
+      snapshot_eid = enclaves[parent_eid].snapshot_eid;
+    }
+    // case 2 - ii: TODO
+    else
+    {
+      return SBI_ERR_SM_ENCLAVE_UNKNOWN_ERROR;
+    }
+
+  }
+
+  sm_assert(ENCLAVE_EXISTS(snapshot_eid));
+
+  // todo thread-unsafe
+  enclaves[snapshot_eid].ref_count ++;
 
   /* EPM and UTM parameters */
   uintptr_t base = create_args.epm_region.paddr;
@@ -759,14 +792,6 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
   enclaves[eid].regions[0].type = REGION_EPM;
   enclaves[eid].regions[1].pmp_rid = shared_region;
   enclaves[eid].regions[1].type = REGION_UTM;
-
-  int region_idx = 2;
-  // Copy any regions in snapshot to new enclave
-  for(int memid = 0; memid < ENCLAVE_REGIONS_MAX; memid++){
-    if(enclaves[snapshot_eid].regions[memid].type == REGION_SNAPSHOT) {
-      sbi_memcpy(&enclaves[eid].regions[region_idx++], &enclaves[snapshot_eid].regions[memid], sizeof(struct enclave_region));
-    }
-  }
 
   //Copy parameters from snapshot to enclave
   enclaves[eid].encl_satp = enclaves[snapshot_eid].encl_satp;
@@ -869,8 +894,8 @@ unsigned long handle_copy_write(uintptr_t fault_addr){
   //Physical address of the fault_addr
   uintptr_t fault_paddr = ((*pte >> PTE_PPN_SHIFT) << RISCV_PAGE_BITS);
 
-  //Check if the fault address is within the parent enclave's memory 
-  if(fault_paddr < enclaves[peid].pa_params.dram_base || 
+  //Check if the fault address is within the parent enclave's memory
+  if(fault_paddr < enclaves[peid].pa_params.dram_base ||
   fault_paddr >= enclaves[peid].pa_params.dram_base + enclaves[peid].pa_params.dram_size){
     return 1;
   }

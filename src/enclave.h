@@ -68,7 +68,6 @@ struct enclave
 {
   //spinlock_t lock; //local enclave lock. we don't need this until we have multithreaded enclave
   enclave_id eid; //enclave id
-  enclave_id snapshot_eid; // snapshot enclave eid
   unsigned long encl_satp; // enclave's page table base
   enclave_state state; // global state of the enclave
 
@@ -89,6 +88,9 @@ struct enclave
 
   struct platform_enclave_data ped;
 
+  /* parameters added for serverless TEE research */
+  enclave_id snapshot_eid; // snapshot enclave eid
+  size_t ref_count; // 0 if not a snapshot or has no reference
   uintptr_t free_list;
 };
 
