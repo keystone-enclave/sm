@@ -37,7 +37,7 @@ typedef enum {
 /* Enclave stop reasons requested */
 #define STOP_TIMER_INTERRUPT  0
 #define STOP_EDGE_CALL_HOST   1
-#define STOP_EXIT_ENCLAVE     2
+#define STOP_CLONE            2
 
 /* For now, eid's are a simple unsigned int */
 typedef unsigned int enclave_id;
