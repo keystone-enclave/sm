@@ -29,9 +29,9 @@ typedef enum {
   DESTROYING = 0,
   ALLOCATED,
   FRESH,
+  SNAPSHOT,
   STOPPED,
   RUNNING,
-  SNAPSHOT,
 } enclave_state;
 
 /* Enclave stop reasons requested */

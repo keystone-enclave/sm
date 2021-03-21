@@ -502,6 +502,15 @@ unsigned long destroy_enclave(enclave_id eid)
   // 0. Let the platform specifics do cleanup/modifications
   platform_destroy_enclave(&enclaves[eid]);
 
+  //If enclave derived from snapshot, decrement ref_count
+  spin_lock(&encl_lock);
+  if (enclaves[eid].snapshot_eid != NO_PARENT)
+  {
+    enclave_id snapshot_eid = enclaves[eid].snapshot_eid;
+    enclaves[snapshot_eid].ref_count--; 
+  }
+  spin_unlock(&encl_lock);
+
 
   // 1. clear all the data in the enclave pages
   // requires no lock (single runner)
