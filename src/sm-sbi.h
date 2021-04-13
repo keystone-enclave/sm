@@ -36,7 +36,7 @@ unsigned long
 sbi_clone(unsigned long* eid, uintptr_t create_args);
 
 unsigned long
-sbi_snapshot(struct sbi_trap_regs *regs);
+sbi_snapshot(struct sbi_trap_regs *regs, uintptr_t boot_pc);
 
 unsigned long
 sbi_sm_random();

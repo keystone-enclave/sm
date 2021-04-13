@@ -47,12 +47,12 @@ sbi_clone(unsigned long* eid, uintptr_t create_args){
 }
 
 unsigned long
-sbi_snapshot(struct sbi_trap_regs *regs)
+sbi_snapshot(struct sbi_trap_regs *regs, uintptr_t boot_pc)
 {
   unsigned long ret;
 
   //Returns snapshot handle
-  ret = create_snapshot(regs, cpu_get_enclave_id());
+  ret = create_snapshot(regs, cpu_get_enclave_id(), boot_pc);
 
   DEBUG("create_snapshot, eid = %d, ret = %lu", cpu_get_enclave_id(), ret);
 
