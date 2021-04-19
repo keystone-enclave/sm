@@ -835,6 +835,9 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
   enclaves[eid].threads[0].prev_csrs.satp = enclaves[eid].encl_satp;
   enclaves[eid].threads[0].prev_state.a0 = base;
   enclaves[eid].threads[0].prev_state.a1 = size;
+  enclaves[eid].threads[0].prev_state.a2 = utbase;
+  enclaves[eid].threads[0].prev_state.a3 = utsize;
+
 
   //Copy arguments prepared by snapshot
   //struct sbi_snapshot_ret *snapshot_ret = (struct sbi_snapshot_ret *) enclaves[eid].threads->prev_state.a0;
