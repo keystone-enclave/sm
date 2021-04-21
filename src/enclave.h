@@ -135,15 +135,18 @@ unsigned long exit_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave_id eid);
 unsigned long attest_enclave(uintptr_t report, uintptr_t data, uintptr_t size, enclave_id eid);
 unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid);
+unsigned long create_fork(struct sbi_trap_regs *regs, enclave_id eid);
 /* attestation and virtual mapping validation */
 unsigned long validate_and_hash_enclave(struct enclave* enclave);
 // TODO: These functions are supposed to be internal functions.
 void enclave_init_metadata();
 unsigned long copy_enclave_create_args(uintptr_t src, struct keystone_sbi_create* dest);
 unsigned long copy_enclave_clone_args(uintptr_t src, struct keystone_sbi_clone_create *dest);
+unsigned long copy_enclave_fork_resume_args(uintptr_t src, struct keystone_sbi_resume_fork_t *dest);
 int get_enclave_region_index(enclave_id eid, enum enclave_region_type type);
 uintptr_t get_enclave_region_base(enclave_id eid, int memid);
 uintptr_t get_enclave_region_size(enclave_id eid, int memid);
 unsigned long get_sealing_key(uintptr_t seal_key, uintptr_t key_ident, size_t key_ident_size, enclave_id eid);
 unsigned long handle_copy_write(uintptr_t fault_addr);
+unsigned long set_child_eid(enclave_id eid, enclave_id child_eid);
 #endif

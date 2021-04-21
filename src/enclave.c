@@ -283,6 +283,16 @@ unsigned long copy_enclave_clone_args(uintptr_t src, struct keystone_sbi_clone_c
     return SBI_ERR_SM_ENCLAVE_SUCCESS;
 }
 
+unsigned long copy_enclave_fork_resume_args(uintptr_t src, struct keystone_sbi_resume_fork_t *dest){
+
+  int region_overlap = copy_to_sm(dest, src, sizeof(struct keystone_sbi_resume_fork_t));
+
+  if (region_overlap)
+    return SBI_ERR_SM_ENCLAVE_REGION_OVERLAPS;
+  else
+    return SBI_ERR_SM_ENCLAVE_SUCCESS;
+}
+
 /* copies data from enclave, source must be inside EPM */
 static unsigned long copy_enclave_data(struct enclave* enclave,
                                           void* dest, uintptr_t source, size_t size) {
@@ -438,7 +448,7 @@ unsigned long create_enclave(unsigned long *eidptr, struct keystone_sbi_create c
   enclaves[eid].free_list = -1;
 
   /* Init enclave state (regs etc) */
-  clean_state(&enclaves[eid].threads[0]);
+  clean_state(&enclaves[eid].threads[0], (uintptr_t *) &params.regs);
 
   /* Platform create happens as the last thing before hashing/etc since
      it may modify the enclave struct */
@@ -623,6 +633,16 @@ unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave
     default:
       return SBI_ERR_SM_ENCLAVE_UNKNOWN_ERROR;
   }
+}
+
+unsigned long set_child_eid(enclave_id eid, enclave_id child_eid){
+  
+  if(!ENCLAVE_EXISTS(eid)) {
+    return SBI_ERR_SM_ENCLAVE_NOT_RESUMABLE;
+  }
+
+  enclaves[eid].threads[0].prev_state.a0 = child_eid; 
+  return SBI_ERR_SM_ENCLAVE_SUCCESS;
 }
 
 unsigned long resume_enclave(struct sbi_trap_regs *regs, enclave_id eid)
@@ -835,6 +855,29 @@ free_encl_idx:
   encl_free_eid(eid);
 error:
   return ret;
+}
+
+unsigned long
+create_fork(struct sbi_trap_regs *regs, enclave_id eid){
+
+    //Resume enclave later
+    int stoppable;
+
+    spin_lock(&encl_lock);
+    stoppable = enclaves[eid].state == RUNNING;
+    if (stoppable) {
+      enclaves[eid].n_thread--;
+      if(enclaves[eid].n_thread == 0)
+        enclaves[eid].state = STOPPED;
+    }
+    spin_unlock(&encl_lock);
+
+  if(!stoppable)
+    return SBI_ERR_SM_ENCLAVE_NOT_RUNNING;
+  
+  context_switch_to_host(regs, eid, 1);
+  return SBI_ERR_SM_ENCLAVE_FORK;
+
 }
 
 unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid)

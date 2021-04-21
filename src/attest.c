@@ -29,7 +29,7 @@ int validate_and_hash_epm(hash_ctx* hash_ctx, int level,
   utm_start = pmp_region_get_addr(encl->regions[idx].pmp_rid);
   utm_size = pmp_region_get_size(encl->regions[idx].pmp_rid);
 
-
+  // sbi_printf("[sm] tb: %p\n", tb);
 
   /* iterate over PTEs */
   for (walk=tb, i=0; walk < tb + (RISCV_PGSIZE/sizeof(pte_t)); walk += 1,i++)
@@ -40,6 +40,7 @@ int validate_and_hash_epm(hash_ctx* hash_ctx, int level,
     }
     uintptr_t vpn;
     uintptr_t phys_addr = (*walk >> PTE_PPN_SHIFT) << RISCV_PGSHIFT;
+    // sbi_printf("[sm] phys_addr: %p\n", (void *) phys_addr);
 
     /* Check for blatently invalid mappings */
     int map_in_epm = (phys_addr >= epm_start &&
@@ -49,6 +50,7 @@ int validate_and_hash_epm(hash_ctx* hash_ctx, int level,
 
     /* EPM may map anything, UTM may not map pgtables */
     if(!map_in_epm && (!map_in_utm || level != 1)){
+      sbi_printf("[sm] bad epm utm: phys_addr: %p, map_in_utm: %d \n", (void *) phys_addr, map_in_utm);
       goto fatal_bail;
     }
 
@@ -66,7 +68,7 @@ int validate_and_hash_epm(hash_ctx* hash_ctx, int level,
     {
 
       hash_extend(hash_ctx, &va_start, sizeof(uintptr_t));
-      //printm("VA hashed: 0x%lx\n", va_start);
+      // sbi_printf("VA hashed: 0x%lx\n", va_start);
       contiguous = 1;
     }
 
@@ -93,6 +95,7 @@ int validate_and_hash_epm(hash_ctx* hash_ctx, int level,
 
       /* Validate U bit */
       if(in_user && !(*walk & PTE_U)){
+        sbi_printf("[sm] fail U bit\n");
         goto fatal_bail;
       }
 
@@ -100,12 +103,15 @@ int validate_and_hash_epm(hash_ctx* hash_ctx, int level,
       if(va_start >= encl->params.untrusted_ptr &&
          va_start < (encl->params.untrusted_ptr + encl->params.untrusted_size) &&
          !map_in_utm){
+              sbi_printf("[sm] fail utm\n");
+
         goto fatal_bail;
       }
 
       /* Do linear mapping validation */
       if(in_runtime){
         if(phys_addr <= *runtime_max_seen){
+          sbi_printf("[sm] fail runtime\n");
           goto fatal_bail;
         }
         else{
@@ -114,6 +120,7 @@ int validate_and_hash_epm(hash_ctx* hash_ctx, int level,
       }
       else if(in_user){
         if(phys_addr <= *user_max_seen){
+          sbi_printf("[sm] fail user\n");
           goto fatal_bail;
         }
         else{
@@ -124,7 +131,7 @@ int validate_and_hash_epm(hash_ctx* hash_ctx, int level,
         // we checked this above, its OK
       }
       else{
-        //printm("BAD GENERIC MAP %x %x %x\n", in_runtime, in_user, map_in_utm);
+        sbi_printf("BAD GENERIC MAP %x %x %x\n", in_runtime, in_user, map_in_utm);
         goto fatal_bail;
       }
 
@@ -135,7 +142,7 @@ int validate_and_hash_epm(hash_ctx* hash_ctx, int level,
 
 
 
-      //printm("PAGE hashed: 0x%lx (pa: 0x%lx)\n", vpn << RISCV_PGSHIFT, phys_addr);
+      // sbi_printf("PAGE hashed: 0x%lx (pa: 0x%lx)\n", vpn << RISCV_PGSHIFT, phys_addr);
     }
     else
     {

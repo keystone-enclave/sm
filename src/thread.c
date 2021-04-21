@@ -87,12 +87,12 @@ void swap_prev_mepc(struct thread_state* thread, struct sbi_trap_regs* regs, uin
 }
 
 
-void clean_state(struct thread_state* state){
+void clean_state(struct thread_state* state, uintptr_t *regs){
   int i;
   uintptr_t* prev = (uintptr_t*) &state->prev_state;
-  for(i=1; i<32; i++)
+  for(i=0; i<32; i++)
   {
-    prev[i] = 0;
+    prev[i] = regs[i];
   }
 
   state->prev_mpp = -1; // 0x800;

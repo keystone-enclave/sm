@@ -75,6 +75,13 @@ static int sbi_ecall_keystone_enclave_handler(unsigned long extid, unsigned long
     case SBI_SM_SNAPSHOT:
       retval = sbi_snapshot((struct sbi_trap_regs*) regs);
       break;
+    case SBI_SM_FORK:
+      retval = sbi_fork((struct sbi_trap_regs*) regs);
+      break;
+    case SBI_SM_RESUME_FORK_ENCLAVE:
+      retval = sbi_sm_resume_fork_enclave((struct sbi_trap_regs*) regs, regs->a0);
+      __builtin_unreachable();
+      break;
     default:
       retval = SBI_ERR_SM_NOT_IMPLEMENTED;
       break;

@@ -9,6 +9,7 @@
 #include "pmp.h"
 #include "sm-sbi.h"
 #include <sbi/riscv_encoding.h>
+#include "thread.h"
 
 #define SMM_BASE  0x80000000
 #define SMM_SIZE  0x200000
@@ -21,6 +22,7 @@
 #define SBI_SM_RUN_ENCLAVE        2003
 #define SBI_SM_RESUME_ENCLAVE     2005
 #define SBI_SM_CLONE_ENCLAVE      2006
+#define SBI_SM_RESUME_FORK_ENCLAVE 2007
 #define FID_RANGE_HOST            2999
 /* 3000-3999 are called by enclave */
 #define SBI_SM_RANDOM             3001
@@ -29,6 +31,7 @@
 #define SBI_SM_STOP_ENCLAVE       3004
 #define SBI_SM_EXIT_ENCLAVE       3006
 #define SBI_SM_SNAPSHOT           3007
+#define SBI_SM_FORK               3008
 #define FID_RANGE_ENCLAVE         3999
 /* 4000-4999 are experimental */
 #define SBI_SM_CALL_PLUGIN        4000
@@ -55,6 +58,7 @@
 #define SBI_ERR_SM_ENCLAVE_NOT_FRESH                   100016
 #define SBI_ERR_SM_ENCLAVE_SNAPSHOT                    100017
 #define SBI_ERR_SM_ENCLAVE_CLONE                       100018
+#define SBI_ERR_SM_ENCLAVE_FORK                        100019
 #define SBI_ERR_SM_DEPRECATED                          100099
 #define SBI_ERR_SM_NOT_IMPLEMENTED                     100100
 
@@ -90,6 +94,7 @@ struct runtime_va_params_t
   uintptr_t user_entry;
   uintptr_t untrusted_ptr;
   uintptr_t untrusted_size;
+  struct ctx regs; 
 };
 
 struct runtime_pa_params
@@ -128,6 +133,12 @@ struct keystone_sbi_create
 
   struct runtime_va_params_t params;
   unsigned int* eid_pptr;
+};
+
+struct keystone_sbi_resume_fork_t
+{
+  uintptr_t eid;
+  uintptr_t child_eid;
 };
 
 int osm_pmp_set(uint8_t perm);

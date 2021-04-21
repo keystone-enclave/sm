@@ -44,4 +44,10 @@ sbi_sm_random();
 unsigned long
 sbi_sm_call_plugin(uintptr_t plugin_id, uintptr_t call_id, uintptr_t arg0, uintptr_t arg1);
 
+unsigned long
+sbi_fork(struct sbi_trap_regs *regs);
+
+unsigned long
+sbi_sm_resume_fork_enclave(struct sbi_trap_regs *regs, uintptr_t args);
+
 #endif

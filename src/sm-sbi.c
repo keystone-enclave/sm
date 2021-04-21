@@ -59,6 +59,17 @@ sbi_snapshot(struct sbi_trap_regs *regs)
   return ret;
 }
 
+//Returns new child eid of forked enclave 
+unsigned long
+sbi_fork(struct sbi_trap_regs *regs)
+{
+  unsigned long child_eid;
+
+  child_eid = create_fork(regs, cpu_get_enclave_id());
+
+  return child_eid;
+}
+
 
 unsigned long sbi_sm_destroy_enclave(unsigned long eid)
 {
@@ -77,6 +88,23 @@ unsigned long sbi_sm_run_enclave(struct sbi_trap_regs *regs, unsigned long eid)
 
   DEBUG("run_enclave, eid = %lu, ret = %lu", eid, regs->a0);
 
+  sbi_trap_exit(regs);
+  return 0;
+}
+
+unsigned long sbi_sm_resume_fork_enclave(struct sbi_trap_regs *regs, uintptr_t args){
+  struct keystone_sbi_resume_fork_t create_args_local;
+  unsigned long ret;
+
+  ret = copy_enclave_fork_resume_args(args, &create_args_local);
+
+  if (ret)
+    return ret;
+
+  ret = resume_enclave(regs, (unsigned int) create_args_local.eid);
+  regs->mepc += 4;
+
+  regs->a0 = create_args_local.child_eid;
   sbi_trap_exit(regs);
   return 0;
 }
