@@ -888,8 +888,6 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid, uintpt
   }
 
   regs->mepc = boot_pc;
-  sbi_printf("boot pc : %lx\n", boot_pc);
-  sbi_printf("satp: %lx -> 0\n", enclaves[eid].encl_satp);
   enclaves[eid].encl_satp = 0;
 
   context_switch_to_host(regs, eid, 0);
