@@ -630,6 +630,10 @@ unsigned long stop_enclave(struct sbi_trap_regs *regs, uint64_t request, enclave
       return SBI_ERR_SM_ENCLAVE_EDGE_CALL_HOST;
     case(STOP_CLONE):
       return SBI_ERR_SM_ENCLAVE_CLONE;
+    case(STOP_REQ_FORK_MORE):
+      return SBI_ERR_SM_ENCLAVE_FORK_MORE;
+    case(SBI_STOP_REQ_FORK_DONE):
+      return SBI_ERR_SM_ENCLAVE_FORK_DONE; 
     default:
       return SBI_ERR_SM_ENCLAVE_UNKNOWN_ERROR;
   }

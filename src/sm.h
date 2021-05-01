@@ -59,6 +59,8 @@
 #define SBI_ERR_SM_ENCLAVE_SNAPSHOT                    100017
 #define SBI_ERR_SM_ENCLAVE_CLONE                       100018
 #define SBI_ERR_SM_ENCLAVE_FORK                        100019
+#define SBI_ERR_SM_ENCLAVE_FORK_MORE                   100020
+#define SBI_ERR_SM_ENCLAVE_FORK_DONE                   100021
 #define SBI_ERR_SM_DEPRECATED                          100099
 #define SBI_ERR_SM_NOT_IMPLEMENTED                     100100
 

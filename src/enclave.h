@@ -38,6 +38,8 @@ typedef enum {
 #define STOP_TIMER_INTERRUPT  0
 #define STOP_EDGE_CALL_HOST   1
 #define STOP_CLONE            2
+#define STOP_REQ_FORK_MORE    4
+#define SBI_STOP_REQ_FORK_DONE 5
 
 /* For now, eid's are a simple unsigned int */
 typedef unsigned int enclave_id;
