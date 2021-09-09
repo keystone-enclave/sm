@@ -786,6 +786,7 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
   size_t size = create_args.epm_region.size;
   uintptr_t utbase = create_args.utm_region.paddr;
   size_t utsize = create_args.utm_region.size;
+  uintptr_t retval = create_args.retval;
 
   // allocate eid
   unsigned long ret = SBI_ERR_SM_ENCLAVE_NO_FREE_RESOURCE;
@@ -837,6 +838,7 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
   enclaves[eid].threads[0].prev_state.a1 = size;
   enclaves[eid].threads[0].prev_state.a2 = utbase;
   enclaves[eid].threads[0].prev_state.a3 = utsize;
+  enclaves[eid].threads[0].prev_state.a5 = retval;
 
 
   //Copy arguments prepared by snapshot
