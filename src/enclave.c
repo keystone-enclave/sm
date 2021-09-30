@@ -767,24 +767,11 @@ static int traverse_pgtable_and_relocate_pages(int level, pte_t* tb, uintptr_t v
 			sm_assert(dst_base <= (uintptr_t) walk && (uintptr_t) walk < (dst_base + dst_size));
       if (level == 1) {
         //DEBUG("SM is relocating %lx to %lx (VA: %lx) (pte: %lx)",
-            phys_addr, phys_addr + offset, ((vaddr << 9) | (i&0x1ff))<<12, pte);
+        //    phys_addr, phys_addr + offset, ((vaddr << 9) | (i&0x1ff))<<12, pte);
       }
       else {
         //DEBUG("SM is relocating %lx to %lx (pte: %lx)", phys_addr, phys_addr + offset, pte);
       }
-    }
-
-    if(level == 1 || (pte & (PTE_X|PTE_R|PTE_W)))
-    {
-      char buf[10];
-      //pte_to_str(pte, buf);
-      //DEBUG("[pgtable] level:%d, base: 0x%lx, i:%d (VA 0x%lx --> PA 0x%lx : %s)", level, (uintptr_t) tb, i, ((vaddr << 9*level) | (i&0x1ff))<<(12 + 9*(level - 1)), phys_addr, buf);
-    }
-    else
-    {
-      char buf[10];
-      //pte_to_str(pte, buf);
-      //DEBUG("[pgtable] level:%d, base: 0x%lx, i:%d, pte: 0x%lx (%s)", level, (uintptr_t) tb, i, pte, buf);
     }
 
     if(level > 1 && !(pte &(PTE_X|PTE_R|PTE_W)))
