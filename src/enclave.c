@@ -744,12 +744,92 @@ unsigned long get_sealing_key(uintptr_t sealing_key, uintptr_t key_ident,
   return SBI_ERR_SM_ENCLAVE_SUCCESS;
 }
 
+typedef uintptr_t pte_t;
+
+static int traverse_pgtable_and_relocate_pages(int level, pte_t* tb, uintptr_t vaddr,
+   uintptr_t offset, uintptr_t src_base, size_t src_size, uintptr_t dst_base, size_t dst_size)
+{
+  pte_t* walk;
+  int ret = 0;
+  int i=0;
+
+  for (walk=tb, i=0; walk < tb + (RISCV_PGSIZE/sizeof(pte_t)) ; walk += 1, i++)
+  {
+    if(*walk == 0)
+      continue;
+
+    pte_t pte = *walk;
+    uintptr_t phys_addr = (pte >> PTE_PPN_SHIFT) << RISCV_PGSHIFT;
+
+    if (phys_addr >= src_base && phys_addr < (src_base + src_size))
+    {
+      *walk = (pte & 0x3ff) | (((phys_addr + offset) >> RISCV_PGSHIFT) << PTE_PPN_SHIFT);
+			sm_assert(dst_base <= (uintptr_t) walk && (uintptr_t) walk < (dst_base + dst_size));
+      if (level == 1) {
+        //DEBUG("SM is relocating %lx to %lx (VA: %lx) (pte: %lx)",
+            phys_addr, phys_addr + offset, ((vaddr << 9) | (i&0x1ff))<<12, pte);
+      }
+      else {
+        //DEBUG("SM is relocating %lx to %lx (pte: %lx)", phys_addr, phys_addr + offset, pte);
+      }
+    }
+
+    if(level == 1 || (pte & (PTE_X|PTE_R|PTE_W)))
+    {
+      char buf[10];
+      //pte_to_str(pte, buf);
+      //DEBUG("[pgtable] level:%d, base: 0x%lx, i:%d (VA 0x%lx --> PA 0x%lx : %s)", level, (uintptr_t) tb, i, ((vaddr << 9*level) | (i&0x1ff))<<(12 + 9*(level - 1)), phys_addr, buf);
+    }
+    else
+    {
+      char buf[10];
+      //pte_to_str(pte, buf);
+      //DEBUG("[pgtable] level:%d, base: 0x%lx, i:%d, pte: 0x%lx (%s)", level, (uintptr_t) tb, i, pte, buf);
+    }
+
+    if(level > 1 && !(pte &(PTE_X|PTE_R|PTE_W)))
+    {
+      if(level == 3 && (i&0x100))
+        vaddr = 0xffffffffffffffffUL;
+      ret |= traverse_pgtable_and_relocate_pages(level - 1, (pte_t*) (phys_addr + offset), (vaddr << 9) | (i&0x1ff),
+          offset, src_base, src_size, dst_base, dst_size);
+    }
+  }
+  return ret;
+}
+
+// traverse parent_satp, copy anything that is in src to dst and update page table
+// return new satp
+uintptr_t copy_and_remap(uintptr_t parent_satp,
+    uintptr_t src_base, size_t src_size,
+    uintptr_t dst_base, size_t dst_size)
+{
+  uintptr_t ret;
+  uintptr_t offset = dst_base - src_base;
+
+  DEBUG("copy_and_remap (%lx, %lx, %ld, %lx, %ld)", parent_satp, src_base, src_size, dst_base, dst_size);
+  // relocate root page table
+  uintptr_t parent_root_page_table = parent_satp << RISCV_PGSHIFT;
+  uintptr_t root_page_table = parent_root_page_table + offset;
+
+  sm_assert (src_size == dst_size);
+  sbi_memcpy((void*) dst_base, (void*) src_base, src_size);
+
+  ret = ((root_page_table >> RISCV_PGSHIFT) | (SATP_MODE_SV39 << HGATP_MODE_SHIFT));
+
+  sm_assert (!traverse_pgtable_and_relocate_pages(3, (pte_t*) root_page_table, 0,
+      offset, src_base, src_size, dst_base, dst_size));
+
+  return ret;
+}
+
 unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_create create_args){
 
   enclave_id parent_eid = create_args.snapshot_eid;
   enclave_id snapshot_eid;
   enclave_id eid = -1;
   int region, shared_region;
+  bool is_parent_snapshot = false;
 
   /* Check if eid */
   if(!(ENCLAVE_EXISTS(parent_eid))) {
@@ -759,6 +839,7 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
   // case 1: if parent enclave is snapshot
   if(enclaves[parent_eid].state == SNAPSHOT) {
     snapshot_eid = parent_eid;
+    is_parent_snapshot = true;
   }
   // case 2: if parent enclave is not a snapshot
   else {
@@ -766,6 +847,7 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
     if (enclaves[parent_eid].snapshot_eid != NO_PARENT)
     {
       snapshot_eid = enclaves[parent_eid].snapshot_eid;
+      is_parent_snapshot = false;
     }
     // case 2 - ii: TODO
     else
@@ -774,7 +856,7 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
     }
   }
 
-  DEBUG("clone : parent (%d), snapshot (%d)", parent_eid, snapshot_eid);
+  DEBUG("clone : parent (%d), snapshot (%d), is_parent_snapshot (%d)", parent_eid, snapshot_eid, is_parent_snapshot);
 
   sm_assert(ENCLAVE_EXISTS(snapshot_eid));
 
@@ -806,6 +888,8 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
   if(pmp_set_global(region, PMP_NO_PERM))
     goto free_shared_region;
 
+  ret = SBI_ERR_SM_ENCLAVE_SUCCESS;
+
   // cleanup some memory regions for sanity See issue #38
   clean_enclave_memory(utbase, utsize);
 
@@ -822,12 +906,20 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
   enclaves[eid].regions[1].type = REGION_UTM;
 
   //Copy parameters from snapshot to enclave
-  enclaves[eid].encl_satp = enclaves[snapshot_eid].encl_satp;
+  if (is_parent_snapshot) {
+    enclaves[eid].encl_satp = enclaves[parent_eid].encl_satp;
+  }
+  else {
+    enclaves[eid].encl_satp =
+      copy_and_remap(enclaves[parent_eid].encl_satp,
+          enclaves[parent_eid].pa_params.dram_base, enclaves[parent_eid].pa_params.dram_size,
+          base, size);
+  }
   // Copy the page table (they should both be the same page)
   // sbi_memcpy((void *) base, (void *) enclaves[snapshot_eid].pa_params.dram_base, PAGE_SIZE);
   enclaves[eid].n_thread = 0;
 
-  sbi_memcpy(&enclaves[eid].threads[0], &enclaves[snapshot_eid].threads[0], sizeof(struct thread_state));
+  sbi_memcpy(&enclaves[eid].threads[0], &enclaves[parent_eid].threads[0], sizeof(struct thread_state));
   //sbi_memcpy(&enclaves[eid].params, &enclaves[parent_eid].params, sizeof(struct runtime_va_params_t ));
   //sbi_memcpy(&enclaves[eid].pa_params, &enclaves[parent_eid].pa_params, sizeof(struct runtime_pa_params));
 
@@ -863,15 +955,25 @@ error:
 
 unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid, uintptr_t boot_pc)
 {
-  //Change enclave state to SNAPSHOT
-  enclaves[eid].state = SNAPSHOT;
+  sm_assert(enclaves[eid].state != SNAPSHOT);
+
+  if (enclaves[eid].snapshot_eid == NO_PARENT)
+  {
+    enclaves[eid].state = SNAPSHOT;
+    enclaves[eid].encl_satp = 0;
+    regs->mepc = boot_pc;
+  }
+  else
+  {
+    enclaves[eid].encl_satp = csr_read(satp);
+  }
 
   /*
     * Set current enclave's PMP regions to SNAPSHOT
     * Copy any EPM regions to the snapshot (we don't care about UTM)
     * Upon context switch to enclave, PMP will be set to READ-ONLY
   */
-  for(int memid = 0; memid < ENCLAVE_REGIONS_MAX; memid++){
+  for(int memid = 0; memid < ENCLAVE_REGIONS_MAX; memid++) {
 
     /* Switch off PMP registers*/
     if(enclaves[eid].regions[memid].type != REGION_INVALID){
@@ -888,9 +990,6 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid, uintpt
       enclaves[eid].regions[memid].type = REGION_INVALID;
     }
   }
-
-  regs->mepc = boot_pc;
-  enclaves[eid].encl_satp = 0;
 
   context_switch_to_host(regs, eid, 0);
 
