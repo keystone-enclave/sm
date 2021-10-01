@@ -943,7 +943,17 @@ error:
 unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid, uintptr_t boot_pc)
 {
   sm_assert(enclaves[eid].state != SNAPSHOT);
+  int stoppable;
 
+  spin_lock(&encl_lock);
+  stoppable = enclaves[eid].state == RUNNING;
+  if (stoppable) {
+    enclaves[eid].n_thread--;
+    if(enclaves[eid].n_thread == 0)
+      enclaves[eid].state = STOPPED;
+  }
+  spin_unlock(&encl_lock);
+// we are not going to remap;
   if (enclaves[eid].snapshot_eid == NO_PARENT)
   {
     enclaves[eid].state = SNAPSHOT;
@@ -952,6 +962,8 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid, uintpt
   }
   else
   {
+    // we are not going to remap;
+    regs->a0 = 0;
     enclaves[eid].encl_satp = csr_read(satp);
   }
 
