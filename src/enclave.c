@@ -836,19 +836,22 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
       snapshot_eid = enclaves[parent_eid].snapshot_eid;
       is_parent_snapshot = false;
     }
-    // case 2 - ii: TODO
+    // case 2 - ii: if parent enclave doesn't have snapshot
     else
     {
-      return SBI_ERR_SM_ENCLAVE_UNKNOWN_ERROR;
+      snapshot_eid = NO_PARENT;
+      is_parent_snapshot = false;
     }
   }
 
   DEBUG("clone : parent (%d), snapshot (%d), is_parent_snapshot (%d)", parent_eid, snapshot_eid, is_parent_snapshot);
 
-  sm_assert(ENCLAVE_EXISTS(snapshot_eid));
+  if (snapshot_eid != NO_PARENT) {
+    sm_assert(ENCLAVE_EXISTS(snapshot_eid));
 
-  // todo thread-unsafe
-  enclaves[snapshot_eid].ref_count ++;
+    // todo thread-unsafe
+    enclaves[snapshot_eid].ref_count ++;
+  }
 
   /* EPM and UTM parameters */
   uintptr_t base = create_args.epm_region.paddr;
@@ -917,8 +920,10 @@ unsigned long clone_enclave(unsigned long *eidptr, struct keystone_sbi_clone_cre
   enclaves[eid].threads[0].prev_state.a1 = size;
   enclaves[eid].threads[0].prev_state.a2 = utbase;
   enclaves[eid].threads[0].prev_state.a3 = utsize;
+  enclaves[eid].threads[0].prev_state.a4 = base;
   enclaves[eid].threads[0].prev_state.a5 = retval;
 
+  DEBUG("base: %lx, size: %lx, utbase: %lx, utsize: %lx, retval: %lx", base, size, utbase, utsize, retval);
 
   //Copy arguments prepared by snapshot
   //struct sbi_snapshot_ret *snapshot_ret = (struct sbi_snapshot_ret *) enclaves[eid].threads->prev_state.a0;
@@ -953,7 +958,8 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid, uintpt
       enclaves[eid].state = STOPPED;
   }
   spin_unlock(&encl_lock);
-// we are not going to remap;
+
+  // we are not going to remap
   if (enclaves[eid].snapshot_eid == NO_PARENT)
   {
     enclaves[eid].state = SNAPSHOT;
@@ -965,6 +971,8 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid, uintpt
     // we are not going to remap;
     regs->a0 = 0;
     enclaves[eid].encl_satp = csr_read(satp);
+    context_switch_to_host(regs, eid, 0);
+    return SBI_ERR_SM_ENCLAVE_SNAPSHOT;
   }
 
   /*

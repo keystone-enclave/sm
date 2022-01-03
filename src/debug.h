@@ -2,6 +2,7 @@
 
 #include <sbi/sbi_console.h>
 #define DEBUG_MODE 0
+#define DEBUG_CTX_SWITCH 0
 
 #if DEBUG_MODE
   #define DEBUG(msg, ...) \

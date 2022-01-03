@@ -89,7 +89,9 @@ unsigned long sbi_sm_resume_enclave(struct sbi_trap_regs *regs, unsigned long ei
     regs->a0 = ret;
   regs->mepc += 4;
 
+#if DEBUG_CTX_SWITCH
   DEBUG("resume_enclave, eid = %lu, ret = %lu, pc = 0x%lx", eid, ret, regs->mepc);
+#endif
 
   sbi_trap_exit(regs);
   return 0;
@@ -112,7 +114,9 @@ unsigned long sbi_sm_stop_enclave(struct sbi_trap_regs *regs, unsigned long requ
   regs->a0 = stop_enclave(regs, request, cpu_get_enclave_id());
   regs->mepc += 4;
 
+#if DEBUG_CTX_SWITCH
   DEBUG("stop_enclave, eid = %d, ret = %lu, request = %lu, pc = 0x%lx", cpu_get_enclave_id(), regs->a0, request, regs->mepc);
+#endif
 
   sbi_trap_exit(regs);
   return 0;

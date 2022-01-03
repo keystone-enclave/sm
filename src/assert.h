@@ -5,7 +5,7 @@
 
 #define sm_assert(cond) { \
   if (!(cond)) { \
-    sbi_printf("[SM] assertion_failed\r\n"); \
+    sbi_printf("[SM] assertion_failed at %s@%s:%d\r\n",__func__,__FILE__,__LINE__); \
     sbi_hart_hang(); \
   } \
 }
