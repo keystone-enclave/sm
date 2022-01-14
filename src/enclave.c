@@ -1002,3 +1002,92 @@ unsigned long create_snapshot(struct sbi_trap_regs *regs, enclave_id eid, uintpt
 
   return SBI_ERR_SM_ENCLAVE_SNAPSHOT;
 }
+
+uintptr_t find_last_entry_on_page(uintptr_t satp) {
+  pte_t* walk;
+
+  for (walk=satp; walk < satp + (RISCV_PGSIZE/sizeof(pte_t)) ; walk += 1) {
+    pte_t pte = *walk;
+    
+    if (!(pte & PTE_V))
+      break;
+  }
+
+  return walk;
+}
+
+static int traverse_pgtable_copy_pages_to_host(int level, uintptr_t src_addr, uintptr_t host_addr, 
+   size_t count, uintptr_t src_base, size_t src_size, uintptr_t dst_base, size_t dst_size)
+{
+  sbi_memcpy((void*) host_addr, (void*) src_addr, count * sizeof(pte_t));
+
+  pte_t* walk;
+  int ret = 0;
+  int i=0;
+
+  for (walk=host_addr; walk < host_addr + count ; walk += 1)
+  {
+    if(*walk == 0 || !(*walk & PTE_V))
+      continue;
+
+    pte_t pte = *walk;
+    uintptr_t phys_addr = (pte >> PTE_PPN_SHIFT) << RISCV_PGSHIFT;
+
+    if (phys_addr >= src_base && phys_addr < (src_base + src_size))
+    {
+			sm_assert(dst_base <= (uintptr_t) walk && (uintptr_t) walk < (dst_base + dst_size));
+      uintptr_t new_page; // TODO: figure out how to allocate new page for page table
+      *walk = (pte & 0x3ff) | ((new_page >> RISCV_PGSHIFT) << PTE_PPN_SHIFT);
+    }
+
+    if(level > 1)
+    {
+      ret |= traverse_pgtable_copy_pages_to_host(level - 1, phys_addr, new_page, RISCV_PGSIZE / sizeof(pte_t),
+          src_base, src_size, dst_base, dst_size);
+    }
+  }
+  return ret;
+}
+
+uintptr_t map_pgtable_to_host(uintptr_t snapshot_satp, uintptr_t host_satp,
+    uintptr_t src_base, size_t src_size,
+    uintptr_t dst_base, size_t dst_size)
+{
+  uintptr_t ret = 0;
+
+  // Find last allocated pte in host root page table 
+  uintptr_t host_last_entry = find_last_entry_on_page(host_satp);
+
+  // Find last allocated pte in snapshot 
+  uintptr_t snapshot_last_entry = find_last_entry_on_page(snapshot_satp); 
+
+  // check that entries in snapshot fit in host page table 
+  size_t num_snapshot_entries = (snapshot_last_entry - snapshot_satp) / sizeof(pte_t) + 1;
+  size_t remaing_host_entries = (host_satp + RISCV_PGSIZE - host_last_entry) / sizeof(pte_t);
+  if (remaing_host_entries < num_snapshot_entries) {
+    return -1; // TODO: add error
+  }
+
+  // traverse snapshot page table and copy entries to host
+  ret = traverse_pgtable_copy_pages_to_host(3, (pte_t*) snapshot_satp, host_last_entry + 1,
+      src_base, src_size, dst_base, dst_size);
+
+  return ret;
+}
+
+
+
+unsigned long map_enclave(enclave_id snapshot_eid, enclave_id host_eid) {
+
+  /* Check if eids exist */
+    if(!(ENCLAVE_EXISTS(snapshot_eid)) || !(ENCLAVE_EXISTS(host_eid))) {
+        return SBI_ERR_SM_ENCLAVE_INVALID_ID;
+    }
+    
+    /* Update snapshot ref count */
+    enclaves[snapshot_eid].ref_count ++;
+
+
+
+
+}
