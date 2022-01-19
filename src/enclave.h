@@ -58,6 +58,7 @@ struct enclave_region
   enum enclave_region_type type;
 };
 
+// chungmcl TODO: add property that says to fuzz time or not
 /* enclave metadata */
 struct enclave
 {

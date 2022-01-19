@@ -12,6 +12,8 @@
 #include <sbi/riscv_asm.h>
 #include <sbi/sbi_console.h>
 
+// chungmcl: TODO: include fuzz code .h file
+
 unsigned long sbi_sm_create_enclave(unsigned long* eid, uintptr_t create_args)
 {
   struct keystone_sbi_create create_args_local;
@@ -53,6 +55,7 @@ unsigned long sbi_sm_resume_enclave(struct sbi_trap_regs *regs, unsigned long ei
   return 0;
 }
 
+// chungmcl: TODO: add fuzz
 unsigned long sbi_sm_exit_enclave(struct sbi_trap_regs *regs, unsigned long retval)
 {
   regs->a0 = exit_enclave(regs, cpu_get_enclave_id());
@@ -62,6 +65,7 @@ unsigned long sbi_sm_exit_enclave(struct sbi_trap_regs *regs, unsigned long retv
   return 0;
 }
 
+// chungmcl: TODO: add fuzz
 unsigned long sbi_sm_stop_enclave(struct sbi_trap_regs *regs, unsigned long request)
 {
   regs->a0 = stop_enclave(regs, request, cpu_get_enclave_id());
