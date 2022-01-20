@@ -12,7 +12,9 @@
 #include <sbi/riscv_asm.h>
 #include <sbi/sbi_console.h>
 
-// chungmcl: TODO: include fuzz code .h file
+// chungmcl: include fuzz code .h file
+#include "time_fuzz.h"
+// chungmcl
 
 unsigned long sbi_sm_create_enclave(unsigned long* eid, uintptr_t create_args)
 {
@@ -58,6 +60,9 @@ unsigned long sbi_sm_resume_enclave(struct sbi_trap_regs *regs, unsigned long ei
 // chungmcl: TODO: add fuzz
 unsigned long sbi_sm_exit_enclave(struct sbi_trap_regs *regs, unsigned long retval)
 {
+  // chungmcl: dummy func 
+  fuzzy_func();
+  // chungmcl
   regs->a0 = exit_enclave(regs, cpu_get_enclave_id());
   regs->a1 = retval;
   regs->mepc += 4;
@@ -68,6 +73,9 @@ unsigned long sbi_sm_exit_enclave(struct sbi_trap_regs *regs, unsigned long retv
 // chungmcl: TODO: add fuzz
 unsigned long sbi_sm_stop_enclave(struct sbi_trap_regs *regs, unsigned long request)
 {
+  // chungmcl: dummy func 
+  fuzzy_func();
+  // chungmcl
   regs->a0 = stop_enclave(regs, request, cpu_get_enclave_id());
   regs->mepc += 4;
   sbi_trap_exit(regs);
