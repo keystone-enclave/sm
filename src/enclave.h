@@ -83,6 +83,8 @@ struct enclave
   struct thread_state threads[MAX_ENCL_THREADS];
 
   struct platform_enclave_data ped;
+
+  uint8_t fuzzy_status;
 };
 
 /* attestation reports */
