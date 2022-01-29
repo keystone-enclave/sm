@@ -1,3 +1,4 @@
+#include <sbi/sbi_timer.h>
 #include "time_fuzz.h"
 #include "enclave.h"
 #include "cpu.h"
@@ -13,11 +14,13 @@ void fuzzy_func() {
     //    // fuzz
     //}
 
-    cycles_t start_time;
-    read_current_timer(&start_time);
+    //cycles_t start_time;
+    //read_current_timer(&start_time);
 
-    cycles_t t = start_time;
-    while (t < (start_time + ARBITRARY_PAUSE)) {
-        read_current_timer(&t);
-    }
+    //cycles_t t = start_time;
+    //while (t < (start_time + ARBITRARY_PAUSE)) {
+    //    read_current_timer(&t);
+    //}
+
+    sbi_timer_mdelay(5000);
 }

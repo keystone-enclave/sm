@@ -1,3 +1,12 @@
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2020 Western Digital Corporation or its affiliates.
+#
+# Authors:
+#   Anup Patel <anup.patel@wdc.com>
+#
+
 ifdef PLATFORM
   platform-genflags-y += "-DTARGET_PLATFORM_HEADER=\"platform/$(PLATFORM)/platform.h\""
 else
@@ -38,3 +47,4 @@ platform-objs-y += ../../src/plugins/plugins.o
 
 platform-objs-y += platform.o
 platform-objs-y += sifive_fu540.o
+platform-objs-y += sifive_fu740.o
