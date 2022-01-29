@@ -3,24 +3,17 @@
 #include "enclave.h"
 #include "cpu.h"
 
-// for debugging -- makes the SM pause for a "noticeable" amount of time
-// on my machine: i9-9880H 32GB RAM running this all on QEMU
-#define ARBITRARY_PAUSE 10000000
-
 void fuzzy_func() {
-    //enclave_id eid = cpu_get_enclave_id();
-    //struct enclave* enclave = get_enclave(eid);
-    //if (enclave->fuzzy_status == FUZZ_ENABLED) {
-    //    // fuzz
-    //}
-
-    //cycles_t start_time;
-    //read_current_timer(&start_time);
-
-    //cycles_t t = start_time;
-    //while (t < (start_time + ARBITRARY_PAUSE)) {
-    //    read_current_timer(&t);
-    //}
-
-    sbi_timer_mdelay(5000);
+    enclave_id eid = cpu_get_enclave_id();
+    struct enclave* enclave = get_enclave(eid);
+    if (enclave->fuzzy_status == FUZZ_ENABLED) {
+        // fuzz
+    }
+    
+    // put this inside if statement later -- force pause
+    // on everything for now for debugging
+    const struct sbi_timer_device* device = sbi_timer_get_device();
+    unsigned long long msPassed = (sbi_timer_value() / device->timer_freq) * 1000;
+    // pause until next 10 ms block
+    sbi_timer_mdelay(10 - (msPassed % 10));
 }
