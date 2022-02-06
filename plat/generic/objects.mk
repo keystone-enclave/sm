@@ -27,9 +27,6 @@ platform-objs-y += ../../src/mprv.o
 platform-objs-y += ../../src/sbi_trap_hack.o
 platform-objs-y += ../../src/trap.o
 platform-objs-y += ../../src/ipi.o
-# chungmcl: Add time_fuzz.h + time_fuzz.c -> time_fuzz.o
-platform-objs-y += ../../src/time_fuzz.o
-# chungmcl
 
 platform-objs-y += ../../src/sha3/sha3.o
 platform-objs-y += ../../src/ed25519/fe.o
