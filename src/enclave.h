@@ -58,15 +58,11 @@ struct enclave_region
   enum enclave_region_type type;
 };
 
-// chungmcl
 typedef enum {
   FUZZ_DISABLED,
   FUZZ_ENABLED
 } time_fuzz_options;
-// chungmcl
 
-// chungmcl TODO: add property that says to fuzz time or not
-/* enclave metadata */
 struct enclave
 {
   //spinlock_t lock; //local enclave lock. we don't need this until we have multithreaded enclave
@@ -90,9 +86,6 @@ struct enclave
   struct thread_state threads[MAX_ENCL_THREADS];
 
   struct platform_enclave_data ped;
-  // chungmcl
-  time_fuzz_options fuzzy_status;
-  // chungmcl
 };
 
 /* attestation reports */
@@ -125,10 +118,6 @@ struct sealing_key
 };
 
 /*** SBI functions & external functions ***/
-
-// chungmcl
-struct enclave* get_enclave(enclave_id eid);
-// chungmcl
 
 // callables from the host
 unsigned long create_enclave(unsigned long *eid, struct keystone_sbi_create create_args);
