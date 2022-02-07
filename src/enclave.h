@@ -58,11 +58,6 @@ struct enclave_region
   enum enclave_region_type type;
 };
 
-typedef enum {
-  FUZZ_DISABLED,
-  FUZZ_ENABLED
-} time_fuzz_options;
-
 struct enclave
 {
   //spinlock_t lock; //local enclave lock. we don't need this until we have multithreaded enclave
