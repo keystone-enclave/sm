@@ -58,7 +58,6 @@ struct enclave_region
   enum enclave_region_type type;
 };
 
-/* enclave metadata */
 struct enclave
 {
   //spinlock_t lock; //local enclave lock. we don't need this until we have multithreaded enclave
@@ -114,6 +113,7 @@ struct sealing_key
 };
 
 /*** SBI functions & external functions ***/
+
 // callables from the host
 unsigned long create_enclave(unsigned long *eid, struct keystone_sbi_create create_args);
 unsigned long destroy_enclave(enclave_id eid);
