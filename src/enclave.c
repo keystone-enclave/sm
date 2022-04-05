@@ -439,6 +439,70 @@ error:
   return ret;
 }
 
+unsigned long create_library_enclave(unsigned long *eidptr, struct keystone_sbi_create create_args) {
+   /* EPM parameters */
+  uintptr_t base = create_args.epm_region.paddr;
+  size_t size = create_args.epm_region.size;
+
+  enclave_id eid;
+  unsigned long ret = 0;
+  int region;
+
+  // TODO: what kind of params should we set? 
+
+  // allocate eid
+  ret = SBI_ERR_SM_ENCLAVE_NO_FREE_RESOURCE;
+  if (encl_alloc_eid(&eid) != SBI_ERR_SM_ENCLAVE_SUCCESS)
+    goto error;
+  
+  // create a PMP region bound to the enclave
+  ret = SBI_ERR_SM_ENCLAVE_PMP_FAILURE;
+  if(pmp_region_init_atomic(base, size, PMP_PRI_ANY, &region, 0))
+    goto free_encl_idx;
+
+  // set pmp registers for private region (not shared)
+  if(pmp_set_global(region, PMP_NO_PERM))
+    goto free_region;
+
+  // initialize enclave metadata
+  enclaves[eid].eid = eid;
+
+  enclaves[eid].regions[0].pmp_rid = region;
+  enclaves[eid].regions[0].type = REGION_EPM;
+
+  enclaves[eid].encl_satp = 0;
+  enclaves[eid].n_thread = 0;
+
+  /* Init enclave state (regs etc) */
+  clean_state(&enclaves[eid].threads[0]);
+
+  /* Platform create happens as the last thing before hashing/etc since
+     it may modify the enclave struct */
+  ret = platform_create_enclave(&enclaves[eid]); // TODO: do we need to update this? 
+  if (ret)
+    goto unset_region;
+
+
+  spin_lock(&encl_lock); 
+  // TODO: handle validation 
+
+  enclaves[eid].state = FRESH;
+  *eidptr = eid;
+  
+  spin_unlock(&encl_lock);
+  return SBI_ERR_SM_ENCLAVE_SUCCESS;
+
+unset_region:
+  pmp_unset_global(region);
+free_region:
+  pmp_region_free_atomic(region);
+free_encl_idx:
+  encl_free_eid(eid);
+error: 
+  return ret;
+}
+
+
 /*
  * Fully destroys an enclave
  * Deallocates EID, clears epm, etc

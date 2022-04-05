@@ -12,6 +12,9 @@ unsigned long
 sbi_sm_create_enclave(unsigned long *out_val, uintptr_t create_args);
 
 unsigned long
+sbi_sm_create_library_enclave(unsigned long *out_val, uintptr_t create_args);
+
+unsigned long
 sbi_sm_destroy_enclave(unsigned long eid);
 
 unsigned long

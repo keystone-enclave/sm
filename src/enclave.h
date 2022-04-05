@@ -84,6 +84,19 @@ struct enclave
   struct platform_enclave_data ped;
 };
 
+// TODO: new structs?
+struct library_enclave
+{
+  enclave_id eid; //enclave id
+  enclave_state state; // global state of the enclave
+
+  /* measurement */
+  byte hash[MDSIZE];
+  byte sign[SIGNATURE_SIZE];
+
+  struct platform_enclave_data ped;
+};
+
 /* attestation reports */
 struct enclave_report
 {
@@ -116,6 +129,7 @@ struct sealing_key
 /*** SBI functions & external functions ***/
 // callables from the host
 unsigned long create_enclave(unsigned long *eid, struct keystone_sbi_create create_args);
+unsigned long create_library_enclave(unsigned long *eid, struct keystone_sbi_create create_args);
 unsigned long destroy_enclave(enclave_id eid);
 unsigned long run_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long resume_enclave(struct sbi_trap_regs *regs, enclave_id eid);
