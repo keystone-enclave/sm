@@ -22,6 +22,8 @@
 /* TODO: does not support multithreaded enclave yet */
 #define MAX_ENCL_THREADS 1
 
+#define NAME_MAX 255
+
 typedef enum {
   INVALID = -1,
   DESTROYING = 0,
@@ -82,6 +84,9 @@ struct enclave
   struct thread_state threads[MAX_ENCL_THREADS];
 
   struct platform_enclave_data ped;
+
+  bool is_libary; 
+  char library_name[NAME_MAX+1]; 
 };
 
 // TODO: new structs?

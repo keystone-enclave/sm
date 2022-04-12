@@ -248,6 +248,18 @@ unsigned long copy_enclave_create_args(uintptr_t src, struct keystone_sbi_create
     return SBI_ERR_SM_ENCLAVE_SUCCESS;
 }
 
+// TODO: add comment
+unsigned long copy_library_name(uintptr_t src, char* dest) {
+
+  int illegal = copy_to_sm(dest, src, NAME_MAX); // TODO: define somewhere
+  dest[NAME_MAX] = '\0'; 
+
+  if(illegal)
+    return SBI_ERR_SM_ENCLAVE_ILLEGAL_ARGUMENT;
+  else
+    return SBI_ERR_SM_ENCLAVE_SUCCESS;
+}
+
 /* copies data from enclave, source must be inside EPM */
 static unsigned long copy_enclave_data(struct enclave* enclave,
                                           void* dest, uintptr_t source, size_t size) {
@@ -448,8 +460,6 @@ unsigned long create_library_enclave(unsigned long *eidptr, struct keystone_sbi_
   unsigned long ret = 0;
   int region;
 
-  // TODO: what kind of params should we set? 
-
   // allocate eid
   ret = SBI_ERR_SM_ENCLAVE_NO_FREE_RESOURCE;
   if (encl_alloc_eid(&eid) != SBI_ERR_SM_ENCLAVE_SUCCESS)
@@ -473,12 +483,15 @@ unsigned long create_library_enclave(unsigned long *eidptr, struct keystone_sbi_
   enclaves[eid].encl_satp = 0;
   enclaves[eid].n_thread = 0;
 
-  /* Init enclave state (regs etc) */
-  clean_state(&enclaves[eid].threads[0]);
+  enclaves[eid].is_libary = true;
+  sbi_memcpy(enclaves[eid].library_name, create_args.library_name, NAME_MAX);
+
+  /* Init enclave state (regs etc) */ 
+  clean_state(&enclaves[eid].threads[0]); 
 
   /* Platform create happens as the last thing before hashing/etc since
      it may modify the enclave struct */
-  ret = platform_create_enclave(&enclaves[eid]); // TODO: do we need to update this? 
+  ret = platform_create_enclave(&enclaves[eid]); 
   if (ret)
     goto unset_region;
 

@@ -108,7 +108,9 @@ struct keystone_sbi_create
   uintptr_t free_paddr;
 
   struct runtime_va_params_t params;
-  unsigned int* eid_pptr;
+  unsigned int* eid_pptr; // TODO: remove? 
+
+  char library_name[256]; // TODO: define somewhere
 };
 
 int osm_pmp_set(uint8_t perm);
