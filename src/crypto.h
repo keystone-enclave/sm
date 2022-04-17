@@ -7,11 +7,12 @@
 
 #include <sbi/sbi_types.h>
 #include "sha3/sha3.h"
+#include "sha256/sha256.h"
 #include "ed25519/ed25519.h"
 #include "hkdf_sha3_512/hkdf_sha3_512.h"
 
-typedef sha3_ctx_t hash_ctx;
-#define MDSIZE  64
+typedef SHA256_CTX hash_ctx;
+#define MDSIZE  32
 
 #define SIGNATURE_SIZE  64
 #define PRIVATE_KEY_SIZE  64 // includes public key

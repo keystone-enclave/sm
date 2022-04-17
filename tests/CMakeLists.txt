@@ -89,6 +89,7 @@ add_executable(test_enclave
 	test_enclave.c
 	${SM_SRC}/platform/generic/platform.c
 	${SM_SRC}/sha3/sha3.c
+  ${SM_SRC}/sha256/sha256.c
 	${SM_SRC}/ed25519/ge.c
 	${SM_SRC}/ed25519/fe.c
 	${SM_SRC}/ed25519/sc.c

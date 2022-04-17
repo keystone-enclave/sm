@@ -20,6 +20,7 @@ platform-objs-y += ../../src/trap.o
 platform-objs-y += ../../src/ipi.o
 
 platform-objs-y += ../../src/sha3/sha3.o
+platform-objs-y += ../../src/sha256/sha256.o
 platform-objs-y += ../../src/ed25519/fe.o
 platform-objs-y += ../../src/ed25519/ge.o
 platform-objs-y += ../../src/ed25519/keypair.o

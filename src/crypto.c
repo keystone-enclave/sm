@@ -7,22 +7,22 @@
 
 void hash_init(hash_ctx* hash_ctx)
 {
-  sha3_init(hash_ctx, MDSIZE);
+  sha256_init(hash_ctx);
 }
 
 void hash_extend(hash_ctx* hash_ctx, const void* ptr, size_t len)
 {
-  sha3_update(hash_ctx, ptr, len);
+  sha256_update(hash_ctx, ptr, len);
 }
 
 void hash_extend_page(hash_ctx* hash_ctx, const void* ptr)
 {
-  sha3_update(hash_ctx, ptr, RISCV_PGSIZE);
+  sha256_update(hash_ctx, ptr, RISCV_PGSIZE);
 }
 
 void hash_finalize(void* md, hash_ctx* hash_ctx)
 {
-  sha3_final(md, hash_ctx);
+  sha256_final(hash_ctx, md);
 }
 
 void sign(void* sign, const void* data, size_t len, const unsigned char* public_key, const unsigned char* private_key)
