@@ -47,6 +47,13 @@ unsigned long sbi_sm_destroy_enclave(unsigned long eid)
   return ret;
 }
 
+unsigned long sbi_sm_destroy_library_enclave(unsigned long eid)
+{
+  unsigned long ret;
+  ret = destroy_library_enclave((unsigned int)eid);
+  return ret;
+}
+
 unsigned long sbi_sm_run_enclave(struct sbi_trap_regs *regs, unsigned long eid)
 {
   regs->a0 = run_enclave(regs, (unsigned int) eid);

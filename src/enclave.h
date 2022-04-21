@@ -29,6 +29,7 @@ typedef enum {
   DESTROYING = 0,
   ALLOCATED,
   FRESH,
+  LIBRARY, // TODO: how does LIBRARY state relate to other states
   STOPPED,
   RUNNING,
 } enclave_state;
@@ -51,6 +52,7 @@ enum enclave_region_type{
   REGION_INVALID,
   REGION_EPM,
   REGION_UTM,
+  REGION_LIBRARY,
   REGION_OTHER,
 };
 
@@ -136,6 +138,7 @@ struct sealing_key
 unsigned long create_enclave(unsigned long *eid, struct keystone_sbi_create create_args);
 unsigned long create_library_enclave(unsigned long *eid, struct keystone_sbi_create create_args);
 unsigned long destroy_enclave(enclave_id eid);
+unsigned long destroy_library_enclave(enclave_id eid);
 unsigned long run_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 unsigned long resume_enclave(struct sbi_trap_regs *regs, enclave_id eid);
 // callables from the enclave
