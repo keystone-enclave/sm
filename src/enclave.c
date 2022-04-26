@@ -396,7 +396,7 @@ unsigned long create_enclave(unsigned long *eidptr, struct keystone_sbi_create c
 
   // initialize enclave metadata
   enclaves[eid].eid = eid;
-  enclaves[eid].is_libary = false;
+  enclaves[eid].is_library = false;
 
   enclaves[eid].regions[0].pmp_rid = region;
   enclaves[eid].regions[0].type = REGION_EPM;
@@ -487,7 +487,7 @@ unsigned long create_library_enclave(unsigned long *eidptr, struct keystone_sbi_
   enclaves[eid].params = (struct runtime_va_params_t) {0};
   enclaves[eid].pa_params = (struct runtime_pa_params) {0};
 
-  enclaves[eid].is_libary = true;
+  enclaves[eid].is_library = true;
   sbi_memcpy(enclaves[eid].library_name, create_args.library_name, NAME_MAX);
 
   /* Init enclave state (regs etc) */ 
@@ -634,7 +634,7 @@ unsigned long destroy_library_enclave(enclave_id eid)
     pmp_region_free_atomic(rid);
   }
 
-  enclaves[eid].is_libary = false;
+  enclaves[eid].is_library = false;
   sbi_memset(enclaves[eid].library_name, 0, NAME_MAX);
 
   enclaves[eid].encl_satp = 0;

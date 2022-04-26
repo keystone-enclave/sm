@@ -87,7 +87,7 @@ struct enclave
 
   struct platform_enclave_data ped;
 
-  bool is_libary; 
+  bool is_library; 
   char library_name[NAME_MAX+1]; 
 };
 
